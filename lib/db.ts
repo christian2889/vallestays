@@ -84,6 +84,62 @@ export async function getBooking(
   return { ...booking, property: property ? toUIProperty(property) : null };
 }
 
+type LeadWithProperty = {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  property_id: string | null;
+  check_in: string | null;
+  check_out: string | null;
+  guests_count: number | null;
+  notes: string | null;
+  status: string;
+  source: string;
+  site: string;
+  stripe_session_id: string | null;
+  stripe_payment_intent_id: string | null;
+  stripe_amount_cents: number | null;
+  stripe_currency: string | null;
+  property: (DBProperty & { property_images?: DBPropertyImage[] | null }) | null;
+};
+
+/** Read a lead by id (used by /confirmed and the webhook). */
+export async function getLead(
+  id: string
+): Promise<(Omit<LeadWithProperty, "property"> & { property: UIProperty | null }) | null> {
+  const supabase = await getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("leads")
+    .select("*, property:properties(*, property_images(*))")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) {
+    console.error("getLead error", error);
+    return null;
+  }
+  if (!data) return null;
+  const { property, ...lead } = data as unknown as LeadWithProperty;
+  return { ...lead, property: property ? toUIProperty(property) : null };
+}
+
+/** Update a lead (webhook uses this to mark Stripe payment, status, etc.). */
+export async function updateLead(
+  id: string,
+  patch: Record<string, unknown>
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = await getSupabaseServerClient();
+  const { error } = await supabase
+    .from("leads")
+    .update(patch as never)
+    .eq("id", id);
+  if (error) {
+    console.error("updateLead error", error);
+    return { ok: false, error: error.message };
+  }
+  return { ok: true };
+}
+
 /** Capture a guest inquiry (no auth required). */
 export async function createLead(input: DBLeadInsert) {
   const supabase = await getSupabaseServerClient();
