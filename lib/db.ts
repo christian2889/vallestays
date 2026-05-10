@@ -64,6 +64,18 @@ export async function createBooking(
   return { id: data.id };
 }
 
+/** Find an already-created booking by its Stripe payment_intent_id. Used for
+ *  webhook idempotency. */
+export async function findBookingByStripePI(stripePI: string) {
+  const supabase = await getSupabaseServerClient();
+  const { data } = await supabase
+    .from("bookings")
+    .select("id")
+    .eq("stripe_payment_intent_id", stripePI)
+    .maybeSingle();
+  return data ? { id: (data as { id: string }).id } : null;
+}
+
 export async function getBooking(
   id: string
 ): Promise<(DBBooking & { property: UIProperty | null }) | null> {

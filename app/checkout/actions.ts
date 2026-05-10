@@ -121,13 +121,17 @@ export async function submitCheckoutAction(formData: FormData) {
         },
       ],
       payment_intent_data: {
-        capture_method: "manual",
+        // Instant book — capture immediately. Webhook then creates the booking
+        // row + sends confirmation emails.
+        capture_method: "automatic",
         description: `${SITE} · ${itemLabel}`,
         metadata: {
           site: SITE,
           lead_id: leadId,
           kind,
           property_id: propertyId || "",
+          nights: String(nights),
+          guests: String(guests),
         },
       },
       metadata: {
