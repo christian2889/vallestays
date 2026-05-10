@@ -156,7 +156,7 @@ main { position: relative; z-index: 2; }
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(280px, 380px);
   gap: 40px;
-  align-items: end;
+  align-items: flex-end;
 }
 
 .vs-search {
@@ -242,7 +242,7 @@ main { position: relative; z-index: 2; }
   display: grid;
   grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
   gap: 60px;
-  align-items: end;
+  align-items: flex-end;
   margin-bottom: 56px;
 }
 .vs-section-lede {

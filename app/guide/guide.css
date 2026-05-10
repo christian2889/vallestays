@@ -31,7 +31,7 @@
   max-width: 1440px; margin: 0 auto;
 }
 .vsg-map-h {
-  display: flex; justify-content: space-between; align-items: end;
+  display: flex; justify-content: space-between; align-items: flex-end;
   gap: 40px; flex-wrap: wrap;
   margin-bottom: 24px;
 }
