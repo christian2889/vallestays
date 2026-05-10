@@ -2,16 +2,23 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { PROPERTIES } from "@/lib/data";
 import { useLang } from "@/components/LangContext";
 import { Nav } from "@/components/Nav";
 import { Footer } from "@/components/Footer";
 import { Placeholder } from "@/components/Placeholder";
+import {
+  type UIProperty,
+  nameFor,
+  descFor,
+  localeFor,
+  paletteFor,
+  shapeFor,
+} from "@/lib/uiprops";
 
 const SEARCH_COPY = {
   en: {
     h_eyebrow: "Find a stay",
-    h_title_1: "Twelve homes,",
+    h_title_1: "Hand-picked homes,",
     h_title_em: "filtered by feeling.",
     h_lede:
       "Use the filters or browse the whole valley. Every home is hand-visited and hand-photographed by us.",
@@ -20,7 +27,7 @@ const SEARCH_COPY = {
     f_who: "Who",
     f_who_v: "2 adults",
     f_kind: "Kind of home",
-    f_view: "Views",
+    f_view: "Beds",
     f_price: "Nightly under",
     sort_by: "Sort by",
     sort_pick: "Our picks",
@@ -35,19 +42,19 @@ const SEARCH_COPY = {
     sleeps: "Sleeps",
     bookable: "Available these dates",
     waitlist: "Waitlist",
+    any: "Any",
   },
   es: {
     h_eyebrow: "Buscar casa",
-    h_title_1: "Doce casas,",
+    h_title_1: "Casas curadas,",
     h_title_em: "filtradas por sensación.",
-    h_lede:
-      "Usa los filtros o pasea por todo el valle. Cada casa la visitamos y fotografiamos en persona.",
+    h_lede: "Usa los filtros o pasea por todo el valle. Cada casa la visitamos y fotografiamos en persona.",
     f_when: "Cuándo",
     f_when_v: "12 abr — 16 abr · 4 noches",
     f_who: "Quién",
     f_who_v: "2 adultos",
     f_kind: "Tipo de casa",
-    f_view: "Vistas",
+    f_view: "Camas",
     f_price: "Por noche bajo",
     sort_by: "Ordenar por",
     sort_pick: "Selección Valle",
@@ -62,47 +69,49 @@ const SEARCH_COPY = {
     sleeps: "Para",
     bookable: "Disponible esas fechas",
     waitlist: "Lista de espera",
+    any: "Cualquiera",
   },
 } as const;
 
 const KINDS = [
-  { id: "all", label_en: "All", label_es: "Todas" },
-  { id: "villa", label_en: "Villas", label_es: "Villas" },
-  { id: "casita", label_en: "Casitas", label_es: "Casitas" },
-  { id: "ranch", label_en: "Ranches", label_es: "Ranchos" },
-];
-
-const VIEWS = [
-  { id: "any", label_en: "Any", label_es: "Cualquiera" },
-  { id: "vineyard", label_en: "Vineyard", label_es: "Viñedo" },
-  { id: "view", label_en: "Valley view", label_es: "Vista al valle" },
-  { id: "off-grid", label_en: "Off-grid", label_es: "Sin red" },
+  { id: "all",      label_en: "All",       label_es: "Todas" },
+  { id: "villa",    label_en: "Villas",    label_es: "Villas" },
+  { id: "house",    label_en: "Houses",    label_es: "Casas" },
+  { id: "apartment",label_en: "Apartments",label_es: "Apartamentos" },
+  { id: "cabin",    label_en: "Cabins",    label_es: "Cabañas" },
+  { id: "cottage",  label_en: "Cottages",  label_es: "Cottages" },
+  { id: "condo",    label_en: "Condos",    label_es: "Condos" },
 ];
 
 const SORTS = ["pick", "low", "high", "size"] as const;
 
-export function SearchPage() {
+export function SearchPage({ properties }: { properties: UIProperty[] }) {
   const { lang } = useLang();
   const s = SEARCH_COPY[lang];
 
+  const maxNightly = useMemo(
+    () => Math.max(1500, ...properties.map((p) => Math.ceil(p.price_per_night))),
+    [properties]
+  );
+
   const [kind, setKind] = useState<string>("all");
-  const [view, setView] = useState<string>("any");
-  const [maxPrice, setMaxPrice] = useState<number>(1500);
+  const [minBeds, setMinBeds] = useState<number>(0);
+  const [maxPrice, setMaxPrice] = useState<number>(maxNightly);
   const [sort, setSort] = useState<(typeof SORTS)[number]>("pick");
   const [hover, setHover] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
-    let r = PROPERTIES.filter(
+    let r = properties.filter(
       (p) =>
-        (kind === "all" || p.type === kind) &&
-        (view === "any" || p.tags.includes(view)) &&
-        p.nightly <= maxPrice
+        (kind === "all" || p.property_type === kind) &&
+        p.beds >= minBeds &&
+        p.price_per_night <= maxPrice
     );
-    if (sort === "low") r = [...r].sort((a, b) => a.nightly - b.nightly);
-    if (sort === "high") r = [...r].sort((a, b) => b.nightly - a.nightly);
+    if (sort === "low") r = [...r].sort((a, b) => a.price_per_night - b.price_per_night);
+    if (sort === "high") r = [...r].sort((a, b) => b.price_per_night - a.price_per_night);
     if (sort === "size") r = [...r].sort((a, b) => b.beds - a.beds);
     return r;
-  }, [kind, view, maxPrice, sort]);
+  }, [properties, kind, minBeds, maxPrice, sort]);
 
   const points = useMemo(() => {
     const seed = (str: string) => {
@@ -110,19 +119,22 @@ export function SearchPage() {
       for (let i = 0; i < str.length; i++) h = (h << 5) - h + str.charCodeAt(i);
       return Math.abs(h);
     };
-    return PROPERTIES.map((p) => ({
+    return properties.map((p) => ({
       id: p.id,
       x: 80 + (seed(p.id) % 540),
       y: 80 + (seed(p.id + "y") % 320),
+      nightly: Math.round(p.price_per_night),
     }));
-  }, []);
+  }, [properties]);
 
   const reset = () => {
     setKind("all");
-    setView("any");
-    setMaxPrice(1500);
+    setMinBeds(0);
+    setMaxPrice(maxNightly);
     setSort("pick");
   };
+
+  const bedOptions = [0, 1, 2, 3, 4, 5];
 
   return (
     <div className="vs-app vss-app">
@@ -147,10 +159,10 @@ export function SearchPage() {
             </div>
             <div className="vss-qb-cell">
               <span>{s.f_view}</span>
-              <select value={view} onChange={(e) => setView(e.target.value)}>
-                {VIEWS.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {lang === "en" ? v.label_en : v.label_es}
+              <select value={minBeds} onChange={(e) => setMinBeds(+e.target.value)}>
+                {bedOptions.map((n) => (
+                  <option key={n} value={n}>
+                    {n === 0 ? s.any : `${n}+`}
                   </option>
                 ))}
               </select>
@@ -197,13 +209,13 @@ export function SearchPage() {
             <div className="vss-rail-block">
               <div className="vs-eyebrow">{s.f_view}</div>
               <div className="vss-chips">
-                {VIEWS.map((v) => (
+                {bedOptions.map((n) => (
                   <button
-                    key={v.id}
-                    className={"vss-chip " + (view === v.id ? "on" : "")}
-                    onClick={() => setView(v.id)}
+                    key={n}
+                    className={"vss-chip " + (minBeds === n ? "on" : "")}
+                    onClick={() => setMinBeds(n)}
                   >
-                    {lang === "en" ? v.label_en : v.label_es}
+                    {n === 0 ? s.any : `${n}+`}
                   </button>
                 ))}
               </div>
@@ -213,17 +225,17 @@ export function SearchPage() {
               <div className="vs-eyebrow">{s.f_price}</div>
               <input
                 type="range"
-                min={200}
-                max={1500}
+                min={100}
+                max={maxNightly}
                 step={25}
                 value={maxPrice}
                 onChange={(e) => setMaxPrice(+e.target.value)}
                 className="vss-range"
               />
               <div className="vss-range-vals">
-                <span>$200</span>
+                <span>$100</span>
                 <strong>${maxPrice}</strong>
-                <span>$1,500</span>
+                <span>${maxNightly.toLocaleString()}</span>
               </div>
             </div>
 
@@ -253,7 +265,6 @@ export function SearchPage() {
                     strokeDasharray="3 3"
                   />
                   {points.map((p) => {
-                    const prop = PROPERTIES.find((x) => x.id === p.id)!;
                     const inResults = filtered.some((x) => x.id === p.id);
                     const isHover = hover === p.id;
                     return (
@@ -274,7 +285,7 @@ export function SearchPage() {
                           fontFamily="JetBrains Mono, monospace"
                           fill="#1a1814"
                         >
-                          ${prop.nightly}
+                          ${p.nightly}
                         </text>
                       </g>
                     );
@@ -307,16 +318,26 @@ export function SearchPage() {
             <div className="vss-list">
               {filtered.map((p, i) => {
                 const avail = i % 5 !== 2;
+                const href = `/stay?id=${p.slug || p.id}&lang=${lang}`;
                 return (
                   <Link
                     key={p.id}
-                    href={`/stay?id=${p.id}&lang=${lang}`}
+                    href={href}
                     className="vss-card"
                     onMouseEnter={() => setHover(p.id)}
                     onMouseLeave={() => setHover(null)}
                   >
                     <div className="vss-card-img">
-                      <Placeholder palette={p.palette} shape={p.shape} aspect="4/3" />
+                      {p.primary_image_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={p.primary_image_url}
+                          alt={nameFor(p, lang)}
+                          style={{ width: "100%", aspectRatio: "4/3", objectFit: "cover", borderRadius: 6 }}
+                        />
+                      ) : (
+                        <Placeholder palette={paletteFor(p)} shape={shapeFor(p)} aspect="4/3" />
+                      )}
                       <div className="vss-card-tag">
                         <i style={{ background: avail ? "#5b9b5b" : "#bd5a2a" }}></i>
                         {avail ? s.bookable : s.waitlist}
@@ -325,14 +346,14 @@ export function SearchPage() {
                     <div className="vss-card-body">
                       <div className="vss-card-meta">
                         <span>{String(i + 1).padStart(2, "0")}</span>
-                        <span>{p.locale[lang]}</span>
+                        <span>{localeFor(p)}</span>
                       </div>
-                      <h3 className="vss-card-name">{p.name}</h3>
-                      <p className="vss-card-desc">{p.desc[lang]}</p>
+                      <h3 className="vss-card-name">{nameFor(p, lang)}</h3>
+                      <p className="vss-card-desc">{descFor(p, lang)}</p>
                       <div className="vss-card-foot">
                         <div className="vss-card-stats">
                           <span>
-                            {s.sleeps} {p.sleeps}
+                            {s.sleeps} {p.max_guests}
                           </span>
                           <span>·</span>
                           <span>
@@ -340,12 +361,12 @@ export function SearchPage() {
                           </span>
                           <span>·</span>
                           <span>
-                            {p.baths} {lang === "en" ? "baths" : "baños"}
+                            {p.bathrooms} {lang === "en" ? "baths" : "baños"}
                           </span>
                         </div>
                         <div className="vss-card-price">
-                          <strong>${p.nightly}</strong>
-                          <span> USD {s.nightly}</span>
+                          <strong>${Math.round(p.price_per_night)}</strong>
+                          <span> {p.currency || "USD"} {s.nightly}</span>
                         </div>
                       </div>
                     </div>

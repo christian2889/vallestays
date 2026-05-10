@@ -1,14 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
-import { PROPERTIES, STAY_COPY, getStayDetail, type Property } from "@/lib/data";
+import { STAY_COPY } from "@/lib/data";
 import { useLang } from "@/components/LangContext";
 import { Nav } from "@/components/Nav";
 import { Footer } from "@/components/Footer";
 import { Placeholder } from "@/components/Placeholder";
 import { StayCard } from "@/components/StayCard";
+import {
+  type UIProperty,
+  nameFor,
+  descFor,
+  localeFor,
+  paletteFor,
+  shapeFor,
+} from "@/lib/uiprops";
 
 type CalRange = { start: Date | null; end: Date | null };
 
@@ -142,7 +149,7 @@ function BookingWidget({
   s,
   lang,
 }: {
-  p: Property;
+  p: UIProperty;
   s: (typeof STAY_COPY)["en"] | (typeof STAY_COPY)["es"];
   lang: "en" | "es";
 }) {
@@ -171,22 +178,35 @@ function BookingWidget({
     range.start && range.end
       ? Math.max(1, Math.round((range.end.getTime() - range.start.getTime()) / 86400000))
       : 0;
-  const sub = nights * p.nightly;
-  const clean = 220;
-  const steward = Math.round(sub * 0.06);
+  const nightly = Math.round(p.price_per_night);
+  const sub = nights * nightly;
+  const clean = Math.round(p.cleaning_fee || 0);
+  const stewardPct = (p.service_fee_percent || 6) / 100;
+  const steward = Math.round(sub * stewardPct);
   const total = sub + clean + steward;
 
   function fmt(d: Date | null) {
     if (!d) return "—";
     return `${s.months[d.getMonth()].slice(0, 3)} ${d.getDate()}`;
   }
+  function fmtIso(d: Date | null) {
+    if (!d) return "";
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${d.getFullYear()}-${m}-${day}`;
+  }
+
+  const checkoutHref =
+    `/checkout?kind=stay&id=${p.id}&lang=${lang}` +
+    `&nights=${nights || 4}&guests=${guests}` +
+    `&in=${fmtIso(range.start)}&out=${fmtIso(range.end)}`;
 
   return (
     <aside className="vsd-book">
       <div className="vsd-book-h">{s.book_h}</div>
       <div className="vsd-book-price">
-        <span className="n">${p.nightly}</span>
-        <span className="u">USD / night</span>
+        <span className="n">${nightly}</span>
+        <span className="u">{p.currency || "USD"} / night</span>
       </div>
 
       <div className="vsd-book-fields">
@@ -203,7 +223,7 @@ function BookingWidget({
           <div className="vsd-stepper">
             <button onClick={() => setGuests(Math.max(1, guests - 1))}>−</button>
             <strong>{guests}</strong>
-            <button onClick={() => setGuests(Math.min(p.sleeps, guests + 1))}>+</button>
+            <button onClick={() => setGuests(Math.min(p.max_guests, guests + 1))}>+</button>
           </div>
         </div>
       </div>
@@ -213,7 +233,7 @@ function BookingWidget({
       <div className="vsd-book-totals">
         <div>
           <span>
-            ${p.nightly} × {nights} {s.book_nights}
+            ${nightly} × {nights} {s.book_nights}
           </span>
           <b>${sub.toLocaleString()}</b>
         </div>
@@ -227,14 +247,11 @@ function BookingWidget({
         </div>
         <div className="total">
           <span>{s.book_total}</span>
-          <b>${total.toLocaleString()} USD</b>
+          <b>${total.toLocaleString()} {p.currency || "USD"}</b>
         </div>
       </div>
 
-      <Link
-        className="vs-btn vs-btn-dark vsd-book-cta"
-        href={`/checkout?kind=stay&id=${p.id}&lang=${lang}&nights=${nights || 4}&guests=${guests}`}
-      >
+      <Link className="vs-btn vs-btn-dark vsd-book-cta" href={checkoutHref}>
         {s.book_cta} →
       </Link>
       <p className="vsd-book-note">{s.book_note}</p>
@@ -242,16 +259,16 @@ function BookingWidget({
   );
 }
 
-export function StayPage() {
+export function StayPage({
+  property: p,
+  similar,
+}: {
+  property: UIProperty;
+  similar: UIProperty[];
+}) {
   const { lang } = useLang();
-  const params = useSearchParams();
-  const initId = params.get("id") || "casa-de-piedra";
-
   const s = STAY_COPY[lang];
-  const p = PROPERTIES.find((x) => x.id === initId) || PROPERTIES[0];
-  const d = getStayDetail(p.id);
-
-  const similar = PROPERTIES.filter((x) => x.id !== p.id).slice(0, 3);
+  const galleryImgs = p.images.slice(0, 5);
 
   return (
     <div className="vs-app vsd-app">
@@ -260,44 +277,64 @@ export function StayPage() {
       <main>
         <section className="vsd-title">
           <div className="vsd-title-meta">
-            <span>
-              0{PROPERTIES.indexOf(p) + 1} / {PROPERTIES.length}
-            </span>
-            <span>{p.locale[lang]}</span>
+            <span>{p.property_type.toUpperCase()}</span>
+            <span>{localeFor(p)}</span>
           </div>
-          <h1 className="vsd-title-h">{p.name}</h1>
+          <h1 className="vsd-title-h">{nameFor(p, lang)}</h1>
           <div className="vsd-title-foot">
             <span>
-              <b>{p.sleeps}</b> {s.sleeps_n}
+              <b>{p.max_guests}</b> {s.sleeps_n}
             </span>
             <span>
               <b>{p.beds}</b> {s.bed_n}
             </span>
             <span>
-              <b>{p.baths}</b> {s.bath_n}
+              <b>{p.bathrooms}</b> {s.bath_n}
             </span>
-            <span>
-              <b>{d.sqft.toLocaleString()}</b> {s.sqft_n}
-            </span>
-            <span>
-              <b>{d.year}</b> ·{" "}
-              <em>
-                {s.restored_n} {d.restored}
-              </em>
-            </span>
+            {p.bedrooms > 0 && (
+              <span>
+                <b>{p.bedrooms}</b> {lang === "en" ? "BR" : "Rec"}
+              </span>
+            )}
+            {p.average_rating != null && (
+              <span>
+                <b>★ {Number(p.average_rating).toFixed(2)}</b> · <em>{p.review_count || 0} {s.reviews_count}</em>
+              </span>
+            )}
           </div>
         </section>
 
         <section className="vsd-gallery">
           <div className="vsd-gallery-hero">
-            <Placeholder palette={p.palette} shape={d.galleryShapes[0]} aspect="3/2" />
+            {galleryImgs[0] ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={galleryImgs[0].url}
+                alt={nameFor(p, lang)}
+                style={{ width: "100%", aspectRatio: "3/2", objectFit: "cover", borderRadius: 6 }}
+              />
+            ) : (
+              <Placeholder palette={paletteFor(p)} shape={shapeFor(p)} aspect="3/2" />
+            )}
           </div>
           <div className="vsd-gallery-grid">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="vsd-gallery-cell">
-                <Placeholder palette={p.palette} shape={d.galleryShapes[i]} aspect="1/1" />
-              </div>
-            ))}
+            {[1, 2, 3, 4].map((i) => {
+              const img = galleryImgs[i];
+              return (
+                <div key={i} className="vsd-gallery-cell">
+                  {img ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={img.url}
+                      alt=""
+                      style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover", borderRadius: 6 }}
+                    />
+                  ) : (
+                    <Placeholder palette={paletteFor(p)} shape={shapeFor(p)} aspect="1/1" />
+                  )}
+                </div>
+              );
+            })}
           </div>
         </section>
 
@@ -305,31 +342,43 @@ export function StayPage() {
           <div className="vsd-body-left">
             <div className="vsd-block">
               <div className="vs-eyebrow">{s.overview}</div>
-              <p className="vsd-lede">{p.desc[lang]}</p>
+              <p className="vsd-lede">{descFor(p, lang)}</p>
             </div>
 
             <div className="vsd-block">
               <div className="vs-eyebrow">{s.rooms_h}</div>
               <ul className="vsd-rooms">
-                {d.rooms.map((r, i) => (
-                  <li key={i}>
-                    <span className="vsd-rooms-n">0{i + 1}</span>
-                    <span>{r[lang]}</span>
-                  </li>
-                ))}
+                <li>
+                  <span className="vsd-rooms-n">01</span>
+                  <span>
+                    {p.bedrooms} {lang === "en" ? "bedrooms" : "recámaras"} · {p.beds}{" "}
+                    {lang === "en" ? "beds" : "camas"}
+                  </span>
+                </li>
+                <li>
+                  <span className="vsd-rooms-n">02</span>
+                  <span>
+                    {p.bathrooms} {lang === "en" ? "bathrooms" : "baños"}
+                  </span>
+                </li>
+                <li>
+                  <span className="vsd-rooms-n">03</span>
+                  <span>
+                    {lang === "en" ? "Sleeps up to" : "Para hasta"} {p.max_guests}
+                  </span>
+                </li>
+                <li>
+                  <span className="vsd-rooms-n">04</span>
+                  <span>
+                    {lang === "en" ? "Check-in" : "Llegada"} {p.check_in_time || "15:00"} ·{" "}
+                    {lang === "en" ? "Check-out" : "Salida"} {p.check_out_time || "11:00"}
+                  </span>
+                </li>
+                <li>
+                  <span className="vsd-rooms-n">05</span>
+                  <span>{p.address}</span>
+                </li>
               </ul>
-            </div>
-
-            <div className="vsd-block">
-              <div className="vs-eyebrow">{s.amen_h}</div>
-              <div className="vsd-amen">
-                {d.amenities.map(([en, es], i) => (
-                  <div key={i} className="vsd-amen-item">
-                    <span className="vsd-amen-dot" />
-                    <span>{lang === "en" ? en : es}</span>
-                  </div>
-                ))}
-              </div>
             </div>
 
             <div className="vsd-block vsd-host">
@@ -338,147 +387,67 @@ export function StayPage() {
               </div>
               <div className="vsd-host-text">
                 <div className="vs-eyebrow">{s.host_h}</div>
-                <h3>{d.host.name}</h3>
-                <p>&quot;{d.host.quote[lang]}&quot;</p>
+                <h3>{lang === "en" ? "Local steward" : "Anfitrión local"}</h3>
+                <p>
+                  &quot;
+                  {lang === "en"
+                    ? "We host the way our grandmothers hosted us — with too much food and a fire in the courtyard."
+                    : "Recibimos como nos recibían nuestras abuelas — con demasiada comida y una fogata en el patio."}
+                  &quot;
+                </p>
                 <div className="vsd-host-meta">
                   <span>
-                    {s.host_since} {d.host.since}
-                  </span>
-                  <i>·</i>
-                  <span>
-                    {s.host_lang} {d.host.lang}
+                    {p.cancellation_policy
+                      ? `${lang === "en" ? "Cancellation" : "Cancelación"}: ${p.cancellation_policy}`
+                      : ""}
                   </span>
                 </div>
               </div>
             </div>
 
-            <div className="vsd-block vsd-map">
-              <div className="vs-eyebrow">{s.map_h}</div>
-              <p>{s.map_body}</p>
-              <div className="vsd-map-canvas">
-                <svg viewBox="0 0 600 360" preserveAspectRatio="xMidYMid slice">
-                  <rect width="600" height="360" fill="var(--vs-paper)" />
-                  {Array.from({ length: 12 }).map((_, i) => (
-                    <line
-                      key={"v" + i}
-                      x1={i * 50}
-                      y1="0"
-                      x2={i * 50}
-                      y2="360"
-                      stroke="var(--vs-line)"
-                      strokeOpacity="0.4"
-                    />
-                  ))}
-                  {Array.from({ length: 8 }).map((_, i) => (
-                    <line
-                      key={"h" + i}
-                      x1="0"
-                      y1={i * 50}
-                      x2="600"
-                      y2={i * 50}
-                      stroke="var(--vs-line)"
-                      strokeOpacity="0.4"
-                    />
-                  ))}
-                  <path
-                    d="M 0 220 Q 200 180 400 200 T 600 180"
-                    stroke="var(--vs-ink)"
-                    strokeWidth="2"
-                    fill="none"
-                  />
-                  <path
-                    d="M 280 0 Q 250 180 320 360"
-                    stroke="var(--vs-ink)"
-                    strokeWidth="1"
-                    fill="none"
-                    strokeDasharray="3 3"
-                  />
-                  <path
-                    d="M 100 80 Q 250 60 400 100 T 580 130"
-                    stroke="var(--vs-muted)"
-                    strokeWidth="1"
-                    fill="none"
-                    opacity="0.6"
-                  />
-                  <path
-                    d="M 80 130 Q 240 110 410 150 T 590 180"
-                    stroke="var(--vs-muted)"
-                    strokeWidth="1"
-                    fill="none"
-                    opacity="0.4"
-                  />
-                  <g transform="translate(310 200)">
-                    <circle r="28" fill="var(--vs-accent)" fillOpacity="0.18" />
-                    <circle r="14" fill="var(--vs-accent)" fillOpacity="0.32" />
-                    <circle r="6" fill="var(--vs-accent)" />
-                  </g>
-                  {([
-                    [180, 160, "Lechuza"],
-                    [420, 260, "Decantos"],
-                    [480, 140, "Vena Cava"],
-                    [150, 260, "Fauna"],
-                    [380, 90, "Deckman's"],
-                  ] as [number, number, string][]).map(([x, y, l], i) => (
-                    <g key={i} transform={`translate(${x} ${y})`}>
-                      <circle r="3" fill="var(--vs-ink)" />
-                      <text
-                        x="8"
-                        y="4"
-                        fontFamily="var(--vs-mono)"
-                        fontSize="10"
-                        fill="var(--vs-ink)"
-                      >
-                        {l}
-                      </text>
+            {p.latitude && p.longitude && (
+              <div className="vsd-block vsd-map">
+                <div className="vs-eyebrow">{s.map_h}</div>
+                <p>{s.map_body}</p>
+                <div className="vsd-map-canvas">
+                  <svg viewBox="0 0 600 360" preserveAspectRatio="xMidYMid slice">
+                    <rect width="600" height="360" fill="var(--vs-paper)" />
+                    {Array.from({ length: 12 }).map((_, i) => (
+                      <line key={"v" + i} x1={i * 50} y1="0" x2={i * 50} y2="360" stroke="var(--vs-line)" strokeOpacity="0.4" />
+                    ))}
+                    {Array.from({ length: 8 }).map((_, i) => (
+                      <line key={"h" + i} x1="0" y1={i * 50} x2="600" y2={i * 50} stroke="var(--vs-line)" strokeOpacity="0.4" />
+                    ))}
+                    <path d="M 0 220 Q 200 180 400 200 T 600 180" stroke="var(--vs-ink)" strokeWidth="2" fill="none" />
+                    <g transform="translate(310 200)">
+                      <circle r="28" fill="var(--vs-accent)" fillOpacity="0.18" />
+                      <circle r="14" fill="var(--vs-accent)" fillOpacity="0.32" />
+                      <circle r="6" fill="var(--vs-accent)" />
                     </g>
-                  ))}
-                </svg>
-                <span className="vsd-map-legend">{s.map_legend}</span>
-              </div>
-            </div>
-
-            <div className="vsd-block">
-              <div className="vsd-rev-h">
-                <div>
-                  <div className="vs-eyebrow">{s.rev_h}</div>
-                  <h3 className="vsd-rev-h-stat">
-                    ★ 4.97 · 124 {s.reviews_count}
-                  </h3>
+                  </svg>
+                  <span className="vsd-map-legend">{s.map_legend}</span>
                 </div>
               </div>
-              <div className="vsd-rev-grid">
-                {d.reviews.map((r, i) => (
-                  <article key={i} className="vsd-rev">
-                    <div className="vsd-rev-stars">
-                      {"★".repeat(r.rating)}
-                      {"☆".repeat(5 - r.rating)}
-                    </div>
-                    <p>&quot;{r.body[lang]}&quot;</p>
-                    <div className="vsd-rev-foot">
-                      <strong>{r.name}</strong>
-                      <span>{r.from[lang]}</span>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </div>
+            )}
           </div>
 
           <BookingWidget p={p} s={s} lang={lang} />
         </section>
 
-        <section className="vsd-similar">
-          <div className="vs-section-head">
-            <div>
-              <div className="vs-eyebrow">{s.sim_h}</div>
+        {similar.length > 0 && (
+          <section className="vsd-similar">
+            <div className="vs-section-head">
+              <div>
+                <div className="vs-eyebrow">{s.sim_h}</div>
+              </div>
             </div>
-          </div>
-          <div className="vs-stays-grid">
-            {similar.map((sp) => (
-              <StayCard key={sp.id} p={sp} />
-            ))}
-          </div>
-        </section>
+            <div className="vs-stays-grid">
+              {similar.map((sp, i) => (
+                <StayCard key={sp.id} p={sp} index={i} />
+              ))}
+            </div>
+          </section>
+        )}
       </main>
 
       <Footer />

@@ -6,14 +6,21 @@ import { Valley } from "@/components/sections/Valley";
 import { Experiences } from "@/components/sections/Experiences";
 import { Journal } from "@/components/sections/Journal";
 import { Reserve } from "@/components/sections/Reserve";
+import { listProperties } from "@/lib/db";
 
-export default function HomePage() {
+export const revalidate = 60;
+
+export default async function HomePage() {
+  const properties = await listProperties();
+  const featured = properties.find((p) => p.is_featured) || properties[0] || null;
+  const homeStays = properties.slice(0, 6);
+
   return (
     <div className="vs-app">
       <Nav />
       <main>
-        <Hero />
-        <Stays />
+        <Hero featured={featured} />
+        <Stays properties={homeStays} />
         <Valley />
         <Experiences />
         <Journal />

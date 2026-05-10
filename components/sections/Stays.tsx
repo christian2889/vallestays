@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { COPY, PROPERTIES } from "@/lib/data";
+import { useMemo, useState } from "react";
+import { COPY } from "@/lib/data";
 import { useLang } from "@/components/LangContext";
 import { StayCard } from "@/components/StayCard";
+import type { UIProperty } from "@/lib/uiprops";
 
-export function Stays() {
+export function Stays({ properties }: { properties: UIProperty[] }) {
   const { lang } = useLang();
   const t = COPY[lang];
   const [filter, setFilter] = useState<string>("all");
@@ -15,10 +16,17 @@ export function Stays() {
     ["villa", t.stays.filter_villa],
     ["casita", t.stays.filter_casita],
     ["ranch", t.stays.filter_ranch],
-    ["off-grid", t.stays.filter_off_grid],
   ];
 
-  const list = filter === "all" ? PROPERTIES : PROPERTIES.filter((p) => p.tags.includes(filter));
+  const list = useMemo(() => {
+    if (filter === "all") return properties;
+    if (filter === "villa") return properties.filter((p) => p.property_type === "villa");
+    if (filter === "casita")
+      return properties.filter((p) => ["apartment", "cottage", "condo"].includes(p.property_type));
+    if (filter === "ranch")
+      return properties.filter((p) => ["cabin", "house"].includes(p.property_type));
+    return properties;
+  }, [filter, properties]);
 
   return (
     <section className="vs-stays" id="stays">
@@ -45,13 +53,13 @@ export function Stays() {
       </div>
 
       <div className="vs-stays-grid">
-        {list.map((p) => (
-          <StayCard key={p.id} p={p} />
+        {list.map((p, i) => (
+          <StayCard key={p.id} p={p} index={i} />
         ))}
       </div>
 
       <div className="vs-stays-foot">
-        <a href="#" className="vs-btn vs-btn-line">
+        <a href={`/search?lang=${lang}`} className="vs-btn vs-btn-line">
           {t.stays.see_all} →
         </a>
       </div>

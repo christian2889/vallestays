@@ -4,8 +4,15 @@ import Link from "next/link";
 import { COPY } from "@/lib/data";
 import { useLang } from "@/components/LangContext";
 import { Placeholder } from "@/components/Placeholder";
+import {
+  type UIProperty,
+  nameFor,
+  localeFor,
+  paletteFor,
+  shapeFor,
+} from "@/lib/uiprops";
 
-export function Hero() {
+export function Hero({ featured }: { featured: UIProperty | null }) {
   const { lang } = useLang();
   const t = COPY[lang];
 
@@ -46,19 +53,39 @@ export function Hero() {
             </div>
           </div>
 
-          <div className="vs-hero-feature">
-            <div className="vs-hero-feature-img">
-              <Placeholder palette={["#8a4a2a", "#d4b896", "#2a1814"]} shape="arch" aspect="5/6" />
-              <span className="vs-hero-feature-tag">{t.hero.featured}</span>
-            </div>
-            <div className="vs-hero-feature-meta">
-              <div className="vs-hero-feature-name">Casa de Piedra</div>
-              <div className="vs-hero-feature-desc">El Porvenir · 6 guests · vineyard view</div>
-              <div className="vs-hero-feature-price">
-                <span>$685</span> USD / night
+          {featured && (
+            <Link
+              href={`/stay?id=${featured.slug || featured.id}&lang=${lang}`}
+              className="vs-hero-feature"
+            >
+              <div className="vs-hero-feature-img">
+                {featured.primary_image_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={featured.primary_image_url}
+                    alt={nameFor(featured, lang)}
+                    style={{ width: "100%", aspectRatio: "5/6", objectFit: "cover", borderRadius: 4 }}
+                  />
+                ) : (
+                  <Placeholder
+                    palette={paletteFor(featured)}
+                    shape={shapeFor(featured)}
+                    aspect="5/6"
+                  />
+                )}
+                <span className="vs-hero-feature-tag">{t.hero.featured}</span>
               </div>
-            </div>
-          </div>
+              <div className="vs-hero-feature-meta">
+                <div className="vs-hero-feature-name">{nameFor(featured, lang)}</div>
+                <div className="vs-hero-feature-desc">
+                  {localeFor(featured)} · {featured.max_guests} guests
+                </div>
+                <div className="vs-hero-feature-price">
+                  <span>${Math.round(featured.price_per_night)}</span> {featured.currency || "USD"} / night
+                </div>
+              </div>
+            </Link>
+          )}
         </div>
 
         <div className="vs-hero-marquee">

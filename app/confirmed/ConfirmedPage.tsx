@@ -1,13 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { useMemo } from "react";
-import { COPY, PROPERTIES } from "@/lib/data";
+import { COPY } from "@/lib/data";
 import { useLang } from "@/components/LangContext";
 import { Nav } from "@/components/Nav";
 import { Footer } from "@/components/Footer";
 import { Placeholder } from "@/components/Placeholder";
+import {
+  type UIProperty,
+  nameFor,
+  localeFor,
+  paletteFor,
+  shapeFor,
+} from "@/lib/uiprops";
 
 const CONF_COPY = {
   en: {
@@ -54,7 +60,8 @@ const CONF_COPY = {
       "A second memory card for the camera.",
     ],
     add_h: "Want to add something?",
-    add_b: "There's still time. Reply to your confirmation email and we'll arrange a chef, a driver, or an extra night.",
+    add_b:
+      "There's still time. Reply to your confirmation email and we'll arrange a chef, a driver, or an extra night.",
     add_cta_exp: "Browse experiences",
     add_cta_g: "Open the guidebook",
     bottom: "Saludos desde el valle.",
@@ -113,7 +120,8 @@ const CONF_COPY = {
       "Una segunda tarjeta de memoria.",
     ],
     add_h: "¿Quieres agregar algo?",
-    add_b: "Aún hay tiempo. Responde a tu correo de confirmación y arreglamos un chef, un chofer o una noche extra.",
+    add_b:
+      "Aún hay tiempo. Responde a tu correo de confirmación y arreglamos un chef, un chofer o una noche extra.",
     add_cta_exp: "Ver experiencias",
     add_cta_g: "Abrir la guía",
     bottom: "Saludos desde el valle.",
@@ -130,37 +138,47 @@ const CONF_COPY = {
   },
 } as const;
 
-export function ConfirmedPage() {
+export function ConfirmedPage({
+  property,
+  kind,
+  nights,
+  guests,
+  checkIn,
+  checkOut,
+  total,
+  ref,
+  expId,
+}: {
+  property: UIProperty | null;
+  kind: "stay" | "exp";
+  nights: number;
+  guests: number;
+  checkIn: string | null;
+  checkOut: string | null;
+  total: number;
+  ref: string | null;
+  expId: string | null;
+}) {
   const { lang } = useLang();
-  const params = useSearchParams();
   const t = COPY[lang];
   const c = CONF_COPY[lang];
 
-  const kind = params.get("kind") || "stay";
-  const id = params.get("id") || (kind === "exp" ? "cellar" : "casa-de-piedra");
-  const nights = +(params.get("nights") || 0) || 4;
-  const guests = +(params.get("guests") || 0) || 2;
-  const total = +(params.get("total") || 0) || 3160;
-  const refFromUrl = params.get("ref");
-  const ref = useMemo(
-    () => refFromUrl || "VS-" + (Math.floor(Math.random() * 9000) + 1000),
-    [refFromUrl]
-  );
-
-  const stay = PROPERTIES.find((p) => p.id === id) || PROPERTIES[0];
-  const expItem = t.exp.items.find((it) => it.id === id) || t.exp.items[0];
   const isExp = kind === "exp";
-  const item = isExp
-    ? {
-        name: expItem.title,
-        locale: { en: expItem.who, es: expItem.who },
-        palette: ["#8a4a2a", "#d4b896", "#3a2418"] as [string, string, string],
-        shape: "arch",
-      }
-    : stay;
+  const expItem = isExp ? t.exp.items.find((it) => it.id === expId) || t.exp.items[0] : null;
 
-  const checkin = params.get("in") || (lang === "en" ? "Apr 12, 2026" : "12 abr 2026");
-  const checkout = params.get("out") || (lang === "en" ? "Apr 16, 2026" : "16 abr 2026");
+  const itemName = property ? nameFor(property, lang) : expItem?.title || "—";
+  const itemLocale = property ? localeFor(property) : expItem?.who || "";
+  const itemPalette = property
+    ? paletteFor(property)
+    : (["#8a4a2a", "#d4b896", "#3a2418"] as [string, string, string]);
+  const itemShape = property ? shapeFor(property) : "arch";
+  const itemImg = property?.primary_image_url ?? null;
+
+  const reference = useMemo(
+    () => ref || "VS-" + (Math.floor(Math.random() * 9000) + 1000),
+    [ref]
+  );
+  const refShort = reference.length > 12 ? reference.slice(0, 8).toUpperCase() : reference;
 
   return (
     <div className="vs-app vsf-app">
@@ -180,12 +198,12 @@ export function ConfirmedPage() {
                   Confirmed
                 </text>
                 <text x="60" y="82" textAnchor="middle" fontFamily="JetBrains Mono, monospace" fontSize="8" letterSpacing="1.5" fill="#bd5a2a">
-                  {ref}
+                  {refShort}
                 </text>
               </svg>
             </div>
             <div className="vs-eyebrow">
-              {c.crumb} · {c.eyebrow} {ref}
+              {c.crumb} · {c.eyebrow} {refShort}
             </div>
             <h1 className="vsf-h">
               {c.h_pre} <em>{c.h_em}</em>
@@ -202,29 +220,29 @@ export function ConfirmedPage() {
 
           <aside className="vsf-ticket">
             <div className="vsf-ticket-img">
-              <Placeholder palette={item.palette} shape={item.shape} aspect="3/2" />
+              {itemImg ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={itemImg}
+                  alt={itemName}
+                  style={{ width: "100%", aspectRatio: "3/2", objectFit: "cover" }}
+                />
+              ) : (
+                <Placeholder palette={itemPalette} shape={itemShape} aspect="3/2" />
+              )}
             </div>
             <div className="vsf-ticket-body">
               <div className="vsf-ticket-h">
                 <span>{isExp ? c.experience : c.stay}</span>
-                <strong>{item.name}</strong>
-                <em>{item.locale[lang]}</em>
+                <strong>{itemName}</strong>
+                <em>{itemLocale}</em>
               </div>
               <div className="vsf-ticket-grid">
-                {!isExp && (
-                  <div>
-                    <span>{c.when_h}</span>
-                    <b>{checkin}</b>
-                    <i>→ {checkout}</i>
-                  </div>
-                )}
-                {isExp && (
-                  <div>
-                    <span>{c.when_h}</span>
-                    <b>{checkin}</b>
-                    <i>11:00 — 15:30</i>
-                  </div>
-                )}
+                <div>
+                  <span>{c.when_h}</span>
+                  <b>{checkIn || (lang === "en" ? "TBC" : "Por confirmar")}</b>
+                  <i>{checkOut ? `→ ${checkOut}` : ""}</i>
+                </div>
                 <div>
                   <span>{isExp ? c.who_h : c.nights}</span>
                   <b>{isExp ? `${guests} ${c.guests}` : `${nights}`}</b>
