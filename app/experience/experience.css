@@ -1,0 +1,90 @@
+/* Experience-specific additions on top of stay.css */
+
+.vse-facts {
+  display: flex; flex-wrap: wrap; gap: 18px;
+  font-family: var(--vs-mono); font-size: 11px;
+  letter-spacing: 0.06em; color: var(--vs-muted);
+}
+.vse-facts b { color: var(--vs-ink); font-weight: 500; margin-right: 4px; }
+
+.vse-gallery .vsd-gallery-grid { grid-template-columns: repeat(4, 1fr); }
+.vse-gallery .vsd-gallery-cell { aspect-ratio: 1/1; }
+
+.vse-sched {
+  list-style: none; margin: 0; padding: 0;
+  border-top: 1px solid var(--vs-line);
+}
+.vse-sched li {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: 24px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--vs-line);
+  align-items: baseline;
+}
+.vse-sched-t {
+  font-family: var(--vs-mono); font-size: 12px;
+  letter-spacing: 0.08em; color: var(--vs-accent);
+}
+.vse-sched-l {
+  font-size: 16px; line-height: 1.5;
+  color: color-mix(in srgb, var(--vs-ink) 85%, transparent);
+}
+
+.vse-incl {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+}
+.vse-incl-list {
+  list-style: none; margin: 12px 0 0; padding: 0;
+}
+.vse-incl-list li {
+  display: flex; gap: 12px;
+  padding: 10px 0;
+  font-size: 14.5px; line-height: 1.5;
+  border-bottom: 1px solid var(--vs-line);
+}
+.vse-incl-list li:last-child { border-bottom: 0; }
+.vse-tick {
+  flex: 0 0 16px; color: var(--vs-accent);
+  font-weight: 600;
+}
+.vse-cross {
+  flex: 0 0 16px; color: var(--vs-muted);
+}
+
+.vse-times {
+  display: flex; gap: 8px;
+  margin: 0 0 16px;
+}
+.vse-time {
+  flex: 1;
+  padding: 10px 0;
+  font-family: var(--vs-mono); font-size: 11px;
+  letter-spacing: 0.1em;
+  background: transparent;
+  border: 1px solid var(--vs-line);
+  border-radius: 6px;
+  color: var(--vs-ink);
+  cursor: pointer;
+  transition: all .15s ease;
+}
+.vse-time:hover { border-color: var(--vs-ink); }
+.vse-time.on {
+  background: var(--vs-ink); color: var(--vs-bg);
+  border-color: var(--vs-ink);
+}
+
+.vse-other-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
+  border-top: 1px solid var(--vs-line);
+}
+
+@media (max-width: 1100px) {
+  .vse-gallery .vsd-gallery-grid { grid-template-columns: repeat(2, 1fr); }
+  .vse-incl { grid-template-columns: 1fr; }
+  .vse-other-grid { grid-template-columns: 1fr; }
+}
