@@ -24,8 +24,17 @@ export function Footer() {
           <div className="vs-footer-line" style={{ whiteSpace: "pre-line" }}>
             {t.footer.address}
           </div>
-          <div className="vs-footer-line">{t.footer.phone}</div>
-          <div className="vs-footer-line">{t.footer.email}</div>
+          <div className="vs-footer-line">
+            <a className="vs-footer-link" href="tel:+526463418025">{t.footer.phone}</a>
+          </div>
+          <div className="vs-footer-line">
+            <a className="vs-footer-link" href="https://wa.me/526463418025" target="_blank" rel="noopener noreferrer">
+              WhatsApp · {t.footer.whatsapp}
+            </a>
+          </div>
+          <div className="vs-footer-line">
+            <a className="vs-footer-link" href="mailto:concierge@vallestays.app">{t.footer.email}</a>
+          </div>
         </div>
         <div className="vs-footer-col">
           <div className="vs-footer-h">{t.footer.follow}</div>

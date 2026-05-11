@@ -542,6 +542,8 @@ main { position: relative; z-index: 2; }
   margin-bottom: 4px;
   color: color-mix(in srgb, var(--vs-bg) 80%, transparent);
 }
+.vs-footer-link { color: inherit; text-decoration: none; }
+.vs-footer-link:hover { text-decoration: underline; }
 .vs-footer-bot {
   max-width: 1440px; margin: 24px auto 0;
   display: flex; justify-content: space-between;
