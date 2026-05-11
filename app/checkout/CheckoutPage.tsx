@@ -175,17 +175,14 @@ export function CheckoutPage({
 
   const nightly = property ? Math.round(property.price_per_night) : 180;
   const cleaning = isExp ? 0 : Math.round(property?.cleaning_fee || 145);
-  const stewardPct = (property?.service_fee_percent || 6) / 100;
 
   const [addons, setAddons] = useState<Record<string, boolean>>({});
   const [submitting, setSubmitting] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
 
   const subtotal = nightly * (isExp ? 1 : initialNights);
-  const steward = Math.round(subtotal * stewardPct);
   const addonTotal = c.addons.reduce((s, a) => s + (addons[a.id] ? a.v : 0), 0);
-  const tax = Math.round((subtotal + cleaning + steward + addonTotal) * 0.04);
-  const total = subtotal + cleaning + steward + addonTotal + tax;
+  const total = subtotal + cleaning + addonTotal;
 
   const stepLabels = [c.step_review, c.step_who, c.step_pay, c.step_done];
   const activeStep = step === 2 ? 4 : 3;
@@ -336,11 +333,6 @@ export function CheckoutPage({
                     <option>Other</option>
                   </select>
                 </div>
-                <div className="vsc-field">
-                  <label>{c.f_id}</label>
-                  <input name="gov_id" />
-                  <small>{c.f_id_h}</small>
-                </div>
               </div>
             </div>
 
@@ -443,20 +435,12 @@ export function CheckoutPage({
                     <strong>${cleaning}</strong>
                   </div>
                 )}
-                <div>
-                  <span>{c.pri_steward}</span>
-                  <strong>${steward}</strong>
-                </div>
                 {addonTotal > 0 && (
                   <div>
                     <span>{c.pri_addons}</span>
                     <strong>${addonTotal}</strong>
                   </div>
                 )}
-                <div>
-                  <span>{c.pri_tax}</span>
-                  <strong>${tax}</strong>
-                </div>
                 <div className="vsc-pri-total">
                   <span>{c.pri_total}</span>
                   <strong>${total.toLocaleString()} USD</strong>

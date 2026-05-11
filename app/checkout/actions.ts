@@ -30,7 +30,6 @@ export async function submitCheckoutAction(formData: FormData) {
   const email = String(formData.get("email") || "");
   const phone = String(formData.get("phone") || "");
   const country = String(formData.get("country") || "");
-  const govId = String(formData.get("gov_id") || "");
   const guestNotes = String(formData.get("guest_notes") || "");
   const expTitle = String(formData.get("exp_title") || "");
 
@@ -48,7 +47,6 @@ export async function submitCheckoutAction(formData: FormData) {
     `Guests: ${guests}`,
     `Total: $${total} USD`,
     country ? `Country: ${country}` : "",
-    govId ? `Gov ID: ${govId}` : "",
     phone ? `Phone: ${phone}` : "",
     guestNotes ? `Guest note: ${guestNotes}` : "",
   ].filter(Boolean);

@@ -230,10 +230,10 @@ async function convertLeadToBooking(args: {
   const nightly = Number(property.price_per_night) || 0;
   const subtotal = nightly * nights;
   const cleaning = Number(property.cleaning_fee || 0);
-  const stewardPct = Number(property.service_fee_percent || 6) / 100;
-  const serviceFee = Math.round(subtotal * stewardPct * 100) / 100;
-  const taxAndAddons = Math.max(0, totalUsd - subtotal - cleaning - serviceFee);
-  // Host keeps 75% of (subtotal + cleaning); platform takes the remainder + steward fee.
+  // Anything paid above (subtotal + cleaning) is from the add-ons selected at
+  // checkout — track it under service_fee on the booking row for now.
+  const addonsAndExtras = Math.max(0, totalUsd - subtotal - cleaning);
+  // Host keeps 75% of (subtotal + cleaning); platform fee covers the rest.
   const hostPayout = Math.round((subtotal * 0.75 + cleaning) * 100) / 100;
 
   const admin = getSupabaseAdminClient();
@@ -252,7 +252,7 @@ async function convertLeadToBooking(args: {
         price_per_night: nightly,
         subtotal,
         cleaning_fee: cleaning,
-        service_fee: serviceFee + taxAndAddons,
+        service_fee: addonsAndExtras,
         total_price: totalUsd,
         host_payout: hostPayout,
         currency: (args.currency || "usd").toUpperCase(),

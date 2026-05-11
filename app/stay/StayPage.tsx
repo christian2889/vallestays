@@ -181,9 +181,7 @@ function BookingWidget({
   const nightly = Math.round(p.price_per_night);
   const sub = nights * nightly;
   const clean = Math.round(p.cleaning_fee || 0);
-  const stewardPct = (p.service_fee_percent || 6) / 100;
-  const steward = Math.round(sub * stewardPct);
-  const total = sub + clean + steward;
+  const total = sub + clean;
 
   function fmt(d: Date | null) {
     if (!d) return "—";
@@ -240,10 +238,6 @@ function BookingWidget({
         <div>
           <span>{s.book_clean}</span>
           <b>${clean}</b>
-        </div>
-        <div>
-          <span>{s.book_steward}</span>
-          <b>${steward}</b>
         </div>
         <div className="total">
           <span>{s.book_total}</span>
