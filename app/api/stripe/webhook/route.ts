@@ -49,11 +49,16 @@ export async function POST(req: NextRequest) {
       }
 
       case "payment_intent.succeeded": {
-        // Backup path: if checkout.session.completed didn't run for some reason,
-        // ensure the booking exists.
+        // Embedded Checkout always fires checkout.session.completed first, which
+        // is the canonical place we create the booking. We only use this event
+        // to make sure the lead has the PI id recorded — never to create a
+        // second booking (that's what caused duplicate emails + rows).
         const intent = event.data.object as Stripe.PaymentIntent;
-        if (intent.metadata?.lead_id) {
-          await handlePaymentIntentSucceeded(intent);
+        const leadId = intent.metadata?.lead_id;
+        if (leadId) {
+          await updateLead(leadId, {
+            stripe_payment_intent_id: intent.id,
+          });
         }
         break;
       }
@@ -117,32 +122,6 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     kind: (session.metadata?.kind as "stay" | "exp" | undefined) ?? "stay",
     nightsFromMeta: Number(session.metadata?.nights ?? 0) || 0,
     guestsFromMeta: Number(session.metadata?.guests ?? 0) || 0,
-  });
-}
-
-async function handlePaymentIntentSucceeded(intent: Stripe.PaymentIntent) {
-  const leadId = intent.metadata?.lead_id;
-  if (!leadId) return;
-
-  const existing = await findBookingByStripePI(intent.id);
-  if (existing) {
-    await updateLead(leadId, {
-      status: "converted",
-      stripe_payment_intent_id: intent.id,
-    });
-    return;
-  }
-
-  await convertLeadToBooking({
-    leadId,
-    sessionId: null,
-    paymentIntentId: intent.id,
-    amountTotalCents: intent.amount_received,
-    currency: intent.currency.toLowerCase(),
-    customerEmail: null,
-    kind: (intent.metadata?.kind as "stay" | "exp" | undefined) ?? "stay",
-    nightsFromMeta: Number(intent.metadata?.nights ?? 0) || 0,
-    guestsFromMeta: Number(intent.metadata?.guests ?? 0) || 0,
   });
 }
 

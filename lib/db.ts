@@ -65,10 +65,12 @@ export async function createBooking(
 }
 
 /** Find an already-created booking by its Stripe payment_intent_id. Used for
- *  webhook idempotency. */
+ *  webhook idempotency. Uses the service-role client so RLS doesn't hide the
+ *  row we just inserted from the parallel webhook event. */
 export async function findBookingByStripePI(stripePI: string) {
-  const supabase = await getSupabaseServerClient();
-  const { data } = await supabase
+  const { getSupabaseAdminClient } = await import("@/lib/supabase/admin");
+  const admin = getSupabaseAdminClient();
+  const { data } = await admin
     .from("bookings")
     .select("id")
     .eq("stripe_payment_intent_id", stripePI)
