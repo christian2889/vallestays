@@ -33,4 +33,21 @@ export async function getSupabaseServerClient() {
   );
 }
 
-export const SITE = process.env.NEXT_PUBLIC_SITE || "vallestays";
+/**
+ * Tenant discriminator for the shared DB. Always normalized to one of the
+ * allowed values regardless of how it was set in env (someone occasionally
+ * pastes a URL there). Defaults to 'vallestays'.
+ */
+const ALLOWED_SITES = ["vallestays", "nidosnvillas"] as const;
+type AllowedSite = (typeof ALLOWED_SITES)[number];
+
+function normalizeSite(raw: string | undefined): AllowedSite {
+  if (!raw) return "vallestays";
+  const lower = raw.toLowerCase();
+  for (const s of ALLOWED_SITES) {
+    if (lower === s || lower.includes(s)) return s;
+  }
+  return "vallestays";
+}
+
+export const SITE: AllowedSite = normalizeSite(process.env.NEXT_PUBLIC_SITE);
