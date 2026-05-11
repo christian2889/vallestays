@@ -341,42 +341,6 @@ export function CheckoutPage({
                 <span>04</span>
                 <h2>{c.pay_h}</h2>
               </div>
-
-              <div className="vsc-cards">
-                <button type="button" className="vsc-pay-tab on">VISA · MC · AMEX</button>
-                <button type="button" className="vsc-pay-tab">Apple Pay</button>
-                <button type="button" className="vsc-pay-tab">Transferencia (MXN)</button>
-              </div>
-
-              <div className="vsc-grid-2">
-                <div className="vsc-field vsc-field-wide">
-                  <label>{c.f_card_name}</label>
-                  <input />
-                </div>
-                <div className="vsc-field vsc-field-wide">
-                  <label>{c.f_card_n}</label>
-                  <div className="vsc-card-row">
-                    <input placeholder="0000 0000 0000 0000" />
-                    <span className="vsc-brand">VISA</span>
-                  </div>
-                </div>
-                <div className="vsc-field">
-                  <label>{c.f_card_exp}</label>
-                  <input placeholder="MM / YY" />
-                </div>
-                <div className="vsc-field">
-                  <label>{c.f_card_cvc}</label>
-                  <input placeholder="123" />
-                </div>
-                <div className="vsc-field">
-                  <label>{c.f_curr}</label>
-                  <select defaultValue="USD">
-                    <option>USD</option>
-                    <option>MXN</option>
-                  </select>
-                </div>
-              </div>
-
               <p className="vsc-pay-note">🔒 {c.pay_note}</p>
             </div>
 
@@ -406,7 +370,7 @@ export function CheckoutPage({
             </div>
 
             <label className="vsc-consent">
-              <input type="checkbox" required />
+              <input type="checkbox" />
               <span>{c.consent}</span>
             </label>
           </div>
