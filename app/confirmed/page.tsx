@@ -60,7 +60,7 @@ export default async function Page({
         checkIn={lead?.check_in || sp.in || null}
         checkOut={lead?.check_out || sp.out || null}
         total={total || 0}
-        ref={leadId || sp.ref || null}
+        reference={leadId || sp.ref || null}
         expId={kind === "exp" ? sp.id || "cellar" : null}
       />
     </Suspense>

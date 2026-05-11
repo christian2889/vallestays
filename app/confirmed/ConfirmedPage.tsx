@@ -146,7 +146,7 @@ export function ConfirmedPage({
   checkIn,
   checkOut,
   total,
-  ref,
+  reference: refProp,
   expId,
 }: {
   property: UIProperty | null;
@@ -156,7 +156,7 @@ export function ConfirmedPage({
   checkIn: string | null;
   checkOut: string | null;
   total: number;
-  ref: string | null;
+  reference: string | null;
   expId: string | null;
 }) {
   const { lang } = useLang();
@@ -175,8 +175,8 @@ export function ConfirmedPage({
   const itemImg = property?.primary_image_url ?? null;
 
   const reference = useMemo(
-    () => ref || "VS-" + (Math.floor(Math.random() * 9000) + 1000),
-    [ref]
+    () => refProp || "VS-" + (Math.floor(Math.random() * 9000) + 1000),
+    [refProp]
   );
   const refShort = reference.length > 12 ? reference.slice(0, 8).toUpperCase() : reference;
 

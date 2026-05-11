@@ -1,7 +1,6 @@
 "use server";
 
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
 import { createLead, updateLead } from "@/lib/db";
 import { stripe } from "@/lib/stripe/server";
 import { SITE } from "@/lib/supabase/server";
@@ -14,7 +13,16 @@ function originFromHeaders(h: Headers) {
   return host ? `${proto}://${host}` : "";
 }
 
-export async function submitCheckoutAction(formData: FormData) {
+type CreateSessionResult =
+  | { ok: true; clientSecret: string; sessionId: string; leadId: string }
+  | { ok: false; error: string };
+
+/**
+ * Creates a Stripe Checkout Session in embedded mode and returns the
+ * clientSecret so the front-end can mount <EmbeddedCheckout>. The user
+ * never leaves vallestays.app.
+ */
+export async function createCheckoutSession(formData: FormData): Promise<CreateSessionResult> {
   const kind = String(formData.get("kind") || "stay");
   const propertyId = String(formData.get("property_id") || "");
   const lang = String(formData.get("lang") || "en");
@@ -34,7 +42,7 @@ export async function submitCheckoutAction(formData: FormData) {
   const expTitle = String(formData.get("exp_title") || "");
 
   if (!email || !firstName || total <= 0) {
-    redirect(`/checkout?lang=${lang}&error=missing`);
+    return { ok: false, error: "missing_fields" };
   }
 
   const itemLabel = kind === "exp" ? expTitle : `Valle Stays · ${kind}`;
@@ -51,7 +59,7 @@ export async function submitCheckoutAction(formData: FormData) {
     guestNotes ? `Guest note: ${guestNotes}` : "",
   ].filter(Boolean);
 
-  // 1) Create the lead first so we have a stable id to put in Stripe metadata
+  // 1) Create the lead so we can store its id in Stripe metadata
   const leadResult = await createLead({
     name: `${firstName} ${lastName}`.trim(),
     email,
@@ -66,15 +74,16 @@ export async function submitCheckoutAction(formData: FormData) {
   });
 
   if (!leadResult.ok) {
-    redirect(`/checkout?lang=${lang}&error=${encodeURIComponent(leadResult.error)}`);
+    return { ok: false, error: leadResult.error };
   }
 
   const leadId = leadResult.id;
 
-  // 2) Create a Stripe Checkout Session in manual-capture mode.
-  //    The card is authorized but NOT charged until we capture it after manual review.
+  // 2) Build the return URL Stripe will redirect to after the embedded
+  //    payment completes (or fails). The webhook is the canonical place
+  //    where the booking is created — this URL is just the UX hand-off.
   const origin = originFromHeaders(await headers());
-  const successParams = new URLSearchParams({
+  const returnParams = new URLSearchParams({
     kind,
     lang,
     lead_id: leadId,
@@ -85,22 +94,13 @@ export async function submitCheckoutAction(formData: FormData) {
     guests: String(guests),
     total: String(total),
   });
-  const successUrl = `${origin}/confirmed?${successParams.toString()}&session_id={CHECKOUT_SESSION_ID}`;
-  const cancelUrl = `${origin}/checkout?${new URLSearchParams({
-    kind,
-    lang,
-    ...(propertyId ? { id: propertyId } : {}),
-    ...(checkIn ? { in: checkIn } : {}),
-    ...(checkOut ? { out: checkOut } : {}),
-    nights: String(nights),
-    guests: String(guests),
-    error: "cancelled",
-  }).toString()}`;
+  const returnUrl = `${origin}/confirmed?${returnParams.toString()}&session_id={CHECKOUT_SESSION_ID}`;
 
-  let sessionUrl: string | null = null;
   try {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
+      ui_mode: "embedded",
+      return_url: returnUrl,
       payment_method_types: ["card"],
       customer_email: email,
       line_items: [
@@ -110,16 +110,19 @@ export async function submitCheckoutAction(formData: FormData) {
             unit_amount: Math.round(total * 100),
             product_data: {
               name: itemLabel,
-              description: kind === "stay"
-                ? `${nights} nights · ${guests} guests${checkIn ? ` · ${checkIn}` : ""}${checkOut ? ` → ${checkOut}` : ""}`
-                : `${guests} guests${checkIn ? ` · ${checkIn}` : ""}`,
+              description:
+                kind === "stay"
+                  ? `${nights} nights · ${guests} guests${checkIn ? ` · ${checkIn}` : ""}${
+                      checkOut ? ` → ${checkOut}` : ""
+                    }`
+                  : `${guests} guests${checkIn ? ` · ${checkIn}` : ""}`,
             },
           },
           quantity: 1,
         },
       ],
       payment_intent_data: {
-        // Instant book — capture immediately. Webhook then creates the booking
+        // Instant book — capture immediately. Webhook creates the booking
         // row + sends confirmation emails.
         capture_method: "automatic",
         description: `${SITE} · ${itemLabel}`,
@@ -140,29 +143,30 @@ export async function submitCheckoutAction(formData: FormData) {
         nights: String(nights),
         guests: String(guests),
       },
-      success_url: successUrl,
-      cancel_url: cancelUrl,
     });
 
-    sessionUrl = session.url;
+    if (!session.client_secret) {
+      return { ok: false, error: "no_client_secret" };
+    }
+
     await updateLead(leadId, {
       stripe_session_id: session.id,
-      stripe_payment_intent_id:
-        typeof session.payment_intent === "string" ? session.payment_intent : null,
       stripe_amount_cents: Math.round(total * 100),
       stripe_currency: "usd",
     });
+
+    return {
+      ok: true,
+      clientSecret: session.client_secret,
+      sessionId: session.id,
+      leadId,
+    };
   } catch (e) {
     console.error("Stripe checkout session create error:", e);
     const message = e instanceof Error ? e.message : "stripe_error";
     await updateLead(leadId, {
       notes: notesParts.concat([`Stripe error: ${message}`]).join(" · "),
     });
-    redirect(`/checkout?lang=${lang}&error=${encodeURIComponent(message)}`);
+    return { ok: false, error: message };
   }
-
-  if (!sessionUrl) {
-    redirect(`/checkout?lang=${lang}&error=no_session_url`);
-  }
-  redirect(sessionUrl);
 }

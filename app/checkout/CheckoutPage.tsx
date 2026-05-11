@@ -13,7 +13,8 @@ import {
   paletteFor,
   shapeFor,
 } from "@/lib/uiprops";
-import { submitCheckoutAction } from "./actions";
+import { createCheckoutSession } from "./actions";
+import { StripeEmbeddedCheckout } from "@/components/StripeEmbeddedCheckout";
 
 const CHECKOUT_COPY = {
   en: {
@@ -62,7 +63,7 @@ const CHECKOUT_COPY = {
     f_card_exp: "Expiry",
     f_card_cvc: "CVC",
     f_curr: "Charge in",
-    pay_note: "You'll be redirected to Stripe to enter your card. Confirmation is instant after payment.",
+    pay_note: "Enter your card below — payment is processed securely by Stripe. Confirmation is instant.",
     notes_h: "Anything we should know?",
     notes_ph: "Anniversary, food allergies, dirt-road anxiety…",
     house_h: "House notes",
@@ -124,7 +125,7 @@ const CHECKOUT_COPY = {
     f_card_cvc: "CVC",
     f_curr: "Cobrar en",
     pay_note:
-      "Te redirigimos a Stripe para ingresar tu tarjeta. La confirmación es instantánea después del pago.",
+      "Ingresa tu tarjeta abajo — el pago lo procesa Stripe de forma segura. Confirmación instantánea.",
     notes_h: "¿Algo que debamos saber?",
     notes_ph: "Aniversario, alergias, miedo a la terracería…",
     house_h: "Notas de la casa",
@@ -178,14 +179,15 @@ export function CheckoutPage({
 
   const [addons, setAddons] = useState<Record<string, boolean>>({});
   const [submitting, setSubmitting] = useState(false);
-  const [step, setStep] = useState<1 | 2>(1);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const subtotal = nightly * (isExp ? 1 : initialNights);
   const addonTotal = c.addons.reduce((s, a) => s + (addons[a.id] ? a.v : 0), 0);
   const total = subtotal + cleaning + addonTotal;
 
   const stepLabels = [c.step_review, c.step_who, c.step_pay, c.step_done];
-  const activeStep = step === 2 ? 4 : 3;
+  const activeStep = clientSecret ? 3 : 2;
 
   return (
     <div className="vs-app vsc-app">
@@ -216,7 +218,14 @@ export function CheckoutPage({
           className="vsc-body"
           action={async (formData) => {
             setSubmitting(true);
-            await submitCheckoutAction(formData);
+            setErrorMsg(null);
+            const result = await createCheckoutSession(formData);
+            setSubmitting(false);
+            if (result.ok) {
+              setClientSecret(result.clientSecret);
+            } else {
+              setErrorMsg(result.error);
+            }
           }}
         >
           <input type="hidden" name="kind" value={kind} />
@@ -341,7 +350,16 @@ export function CheckoutPage({
                 <span>04</span>
                 <h2>{c.pay_h}</h2>
               </div>
-              <p className="vsc-pay-note">🔒 {c.pay_note}</p>
+              {clientSecret ? (
+                <StripeEmbeddedCheckout clientSecret={clientSecret} />
+              ) : (
+                <p className="vsc-pay-note">🔒 {c.pay_note}</p>
+              )}
+              {errorMsg && (
+                <div className="vsc-error">
+                  {lang === "en" ? "Payment couldn't start" : "No se pudo iniciar el pago"}: {errorMsg}
+                </div>
+              )}
             </div>
 
             <div className="vsc-block">
@@ -412,14 +430,15 @@ export function CheckoutPage({
                 <div className="vsc-pri-when">{c.pri_charged}</div>
               </div>
 
-              <button
-                type="submit"
-                disabled={submitting}
-                className="vs-btn vs-btn-dark vsc-cta"
-                onClick={() => setStep(1)}
-              >
-                {submitting ? c.cta_busy : c.cta} →
-              </button>
+              {!clientSecret && (
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="vs-btn vs-btn-dark vsc-cta"
+                >
+                  {submitting ? c.cta_busy : c.cta} →
+                </button>
+              )}
               <p className="vsc-foot-note">{c.foot_note}</p>
             </div>
           </aside>
