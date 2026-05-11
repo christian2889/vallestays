@@ -68,10 +68,10 @@ const CONF_COPY = {
     bottom_sig: "— Marcela, Tomás & the Valle Stays team",
     contact_h: "Need us?",
     contact_list: [
-      ["Concierge (24h, EN/ES)", "+52 646 155 0000"],
-      ["WhatsApp", "+52 646 122 0044"],
-      ["Email", "concierge@vallestays.mx"],
-    ] as [string, string][],
+      { label: "Concierge (24h, EN/ES)", value: "+52 646 341 8025", href: "tel:+526463418025" },
+      { label: "WhatsApp", value: "+52 646 341 8025", href: "https://wa.me/526463418025" },
+      { label: "Email", value: "concierge@vallestays.app", href: "mailto:concierge@vallestays.app" },
+    ] as { label: string; value: string; href: string }[],
     stay: "Stay",
     experience: "Experience",
     met: "Met at the gate",
@@ -128,10 +128,10 @@ const CONF_COPY = {
     bottom_sig: "— Marcela, Tomás y el equipo de Valle Stays",
     contact_h: "¿Nos necesitas?",
     contact_list: [
-      ["Concierge (24h, EN/ES)", "+52 646 155 0000"],
-      ["WhatsApp", "+52 646 122 0044"],
-      ["Correo", "concierge@vallestays.mx"],
-    ] as [string, string][],
+      { label: "Concierge (24h, EN/ES)", value: "+52 646 341 8025", href: "tel:+526463418025" },
+      { label: "WhatsApp", value: "+52 646 341 8025", href: "https://wa.me/526463418025" },
+      { label: "Correo", value: "concierge@vallestays.app", href: "mailto:concierge@vallestays.app" },
+    ] as { label: string; value: string; href: string }[],
     stay: "Casa",
     experience: "Experiencia",
     met: "Recepción en portón",
@@ -250,7 +250,7 @@ export function ConfirmedPage({
                 </div>
                 <div>
                   <span>{c.arrival_h}</span>
-                  <b>{isExp ? "11:00" : lang === "en" ? "After 4pm" : "Después 4pm"}</b>
+                  <b>{isExp ? "11:00" : lang === "en" ? "After 3pm" : "Después 3pm"}</b>
                   <i>{c.met}</i>
                 </div>
                 <div>
@@ -332,8 +332,8 @@ export function ConfirmedPage({
             <ul className="vsf-contact">
               {c.contact_list.map((row, i) => (
                 <li key={i}>
-                  <span>{row[0]}</span>
-                  <strong>{row[1]}</strong>
+                  <span>{row.label}</span>
+                  <a href={row.href} className="vsf-contact-link" target={row.href.startsWith("https") ? "_blank" : undefined} rel={row.href.startsWith("https") ? "noopener noreferrer" : undefined}>{row.value}</a>
                 </li>
               ))}
             </ul>

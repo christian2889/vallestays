@@ -156,6 +156,52 @@ function escapeHtml(s: string) {
     .replace(/'/g, "&#39;");
 }
 
+export type InquiryEmailInput = {
+  name: string;
+  email: string;
+  dates: string;
+  party: string;
+  notes: string;
+  notifyTo: string;
+};
+
+export async function sendInquiryNotification(input: InquiryEmailInput) {
+  if (!resend) {
+    console.warn("RESEND_API_KEY not set — skipping inquiry notification.");
+    return { ok: false as const, error: "resend_not_configured" };
+  }
+
+  const html = `<!doctype html>
+<html><body style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#f1ebe0;padding:40px;color:#1f1812;">
+  <div style="max-width:560px;margin:0 auto;background:#fff;border:1px solid #cfc5b3;border-radius:8px;padding:28px;">
+    <h2 style="margin:0 0 8px;font-family:'Cormorant Garamond',Georgia,serif;font-weight:400;font-size:26px;">New inquiry — Valle Stays</h2>
+    <p style="font-size:14px;color:#4a4338;margin:0 0 20px;">A visitor submitted the contact form.</p>
+    <table cellpadding="0" cellspacing="0" style="width:100%;font-size:14px;">
+      <tr><td style="color:#6b6356;padding:6px 0;width:90px;">Name</td><td style="font-weight:500;">${escapeHtml(input.name)}</td></tr>
+      <tr><td style="color:#6b6356;padding:6px 0;">Email</td><td><a href="mailto:${escapeHtml(input.email)}" style="color:#b04a2f;">${escapeHtml(input.email)}</a></td></tr>
+      <tr><td style="color:#6b6356;padding:6px 0;">Dates</td><td>${escapeHtml(input.dates)}</td></tr>
+      <tr><td style="color:#6b6356;padding:6px 0;">Party</td><td>${escapeHtml(input.party)}</td></tr>
+      ${input.notes ? `<tr><td style="color:#6b6356;padding:6px 0;vertical-align:top;">Notes</td><td>${escapeHtml(input.notes)}</td></tr>` : ""}
+    </table>
+  </div>
+</body></html>`;
+
+  try {
+    const result = await resend.emails.send({
+      from: FROM_HOST,
+      to: input.notifyTo,
+      replyTo: input.email,
+      subject: `New inquiry from ${input.name}`,
+      html,
+    });
+    if (result.error) console.error("Resend inquiry error:", result.error);
+    return { ok: true as const };
+  } catch (e) {
+    console.error("sendInquiryNotification error:", e);
+    return { ok: false as const, error: e instanceof Error ? e.message : "unknown" };
+  }
+}
+
 export async function sendConfirmationEmails(input: ConfirmationEmailInput) {
   if (!resend) {
     console.warn("RESEND_API_KEY not set — skipping confirmation emails.");

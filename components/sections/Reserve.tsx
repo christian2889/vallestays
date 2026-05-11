@@ -1,14 +1,27 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { COPY } from "@/lib/data";
 import { useLang } from "@/components/LangContext";
 import { Placeholder } from "@/components/Placeholder";
+import { submitInquiry } from "@/app/actions/inquiry";
 
 export function Reserve() {
   const { lang } = useLang();
   const t = COPY[lang];
   const [sent, setSent] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setLoading(true);
+    const fd = new FormData(e.currentTarget);
+    await submitInquiry(fd);
+    setSent(true);
+    setLoading(false);
+    formRef.current?.reset();
+  }
 
   return (
     <section className="vs-reserve" id="reserve">
@@ -29,39 +42,32 @@ export function Reserve() {
           </div>
         </div>
 
-        <form
-          className="vs-form"
-          onSubmit={(e) => {
-            e.preventDefault();
-            setSent(true);
-          }}
-        >
+        <form ref={formRef} className="vs-form" onSubmit={handleSubmit}>
           <label className="vs-field">
             <span>{t.reserve.f_name}</span>
-            <input type="text" defaultValue="" />
+            <input type="text" name="name" required />
           </label>
           <label className="vs-field">
             <span>{t.reserve.f_email}</span>
-            <input type="email" defaultValue="" />
+            <input type="email" name="email" required />
           </label>
           <label className="vs-field">
             <span>{t.reserve.f_dates}</span>
-            <input type="text" defaultValue="Apr 12 — Apr 16, 2026" />
+            <input type="text" name="dates" defaultValue="" />
           </label>
           <label className="vs-field">
             <span>{t.reserve.f_party}</span>
-            <input type="text" defaultValue="2 adults" />
+            <input type="text" name="party" defaultValue="" />
           </label>
           <label className="vs-field vs-field-wide">
             <span>{t.reserve.f_notes}</span>
-            <textarea rows={3} placeholder={t.reserve.f_notes_ph} defaultValue=""></textarea>
+            <textarea name="notes" rows={3} placeholder={t.reserve.f_notes_ph}></textarea>
           </label>
           <div className="vs-form-foot">
-            <button type="submit" className="vs-btn vs-btn-dark">
-              {sent ? "✓ " : ""}
-              {t.reserve.submit}
+            <button type="submit" className="vs-btn vs-btn-dark" disabled={loading || sent}>
+              {sent ? "✓ " : ""}{loading ? "…" : t.reserve.submit}
             </button>
-            <span className="vs-form-note">{t.reserve.reply}</span>
+            <span className="vs-form-note">{sent ? (lang === "en" ? "Message received — we'll reply shortly." : "Recibido — te contestamos pronto.") : t.reserve.reply}</span>
           </div>
         </form>
       </div>

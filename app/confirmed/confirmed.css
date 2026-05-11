@@ -261,6 +261,12 @@
   font-family: var(--vs-display); font-weight: 400;
   font-size: 19px;
 }
+.vsf-contact-link {
+  font-family: var(--vs-display); font-weight: 400;
+  font-size: 19px;
+  color: inherit; text-decoration: none;
+}
+.vsf-contact-link:hover { text-decoration: underline; }
 
 /* Add-on row */
 .vsf-add {
