@@ -116,12 +116,14 @@ type LeadWithProperty = {
   property: (DBProperty & { property_images?: DBPropertyImage[] | null }) | null;
 };
 
-/** Read a lead by id (used by /confirmed and the webhook). */
+/** Read a lead by id (used by /confirmed and the webhook). Service-role —
+ *  the leads SELECT policies only allow admins or hosts of the property. */
 export async function getLead(
   id: string
 ): Promise<(Omit<LeadWithProperty, "property"> & { property: UIProperty | null }) | null> {
-  const supabase = await getSupabaseServerClient();
-  const { data, error } = await supabase
+  const { getSupabaseAdminClient } = await import("@/lib/supabase/admin");
+  const admin = getSupabaseAdminClient();
+  const { data, error } = await admin
     .from("leads")
     .select("*, property:properties(*, property_images(*))")
     .eq("id", id)
@@ -135,13 +137,15 @@ export async function getLead(
   return { ...lead, property: property ? toUIProperty(property) : null };
 }
 
-/** Update a lead (webhook uses this to mark Stripe payment, status, etc.). */
+/** Update a lead (webhook + server actions use this; service-role to bypass
+ *  RLS since neither caller has an authenticated user context). */
 export async function updateLead(
   id: string,
   patch: Record<string, unknown>
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const supabase = await getSupabaseServerClient();
-  const { error } = await supabase
+  const { getSupabaseAdminClient } = await import("@/lib/supabase/admin");
+  const admin = getSupabaseAdminClient();
+  const { error } = await admin
     .from("leads")
     .update(patch as never)
     .eq("id", id);
@@ -152,10 +156,13 @@ export async function updateLead(
   return { ok: true };
 }
 
-/** Capture a guest inquiry (no auth required). */
+/** Capture a guest inquiry (no auth required). Uses the service-role client
+ *  because the visitor is anonymous and the leads RLS policy + grants don't
+ *  let `anon` SELECT after INSERT (we need the returned id). */
 export async function createLead(input: DBLeadInsert) {
-  const supabase = await getSupabaseServerClient();
-  const { data, error } = await supabase
+  const { getSupabaseAdminClient } = await import("@/lib/supabase/admin");
+  const admin = getSupabaseAdminClient();
+  const { data, error } = await admin
     .from("leads")
     .insert([{ ...input, site: SITE, source: input.source ?? "form" }] as never)
     .select("id")
