@@ -33,7 +33,7 @@ const CHECKOUT_COPY = {
     checkin: "Check-in",
     checkout: "Check-out",
     arrival: "Arrival window",
-    arrival_v: "After 4pm",
+    arrival_v: "After 3pm",
     addons_h: "Add to your stay",
     addons: [
       { id: "welcome", t: "Welcome basket", b: "Local cheese, bread from La Espiga, bottle of Adobe Guadalupe Tinto.", v: 65 },
@@ -68,7 +68,7 @@ const CHECKOUT_COPY = {
     notes_ph: "Anniversary, food allergies, dirt-road anxiety…",
     house_h: "House notes",
     house: [
-      "Check-in is 4pm. We can hold a 2pm early arrival for $25.",
+      "Check-in is 3pm. We can hold a 2pm early arrival for $25.",
       "Cancel free up to 14 days before check-in. After that, 50% refundable.",
       "Smoking outside only. Dogs welcome with a note in advance.",
     ],
@@ -94,7 +94,7 @@ const CHECKOUT_COPY = {
     checkin: "Llegada",
     checkout: "Salida",
     arrival: "Ventana de llegada",
-    arrival_v: "Después de 4pm",
+    arrival_v: "Después de 3pm",
     addons_h: "Agrega a tu estancia",
     addons: [
       { id: "welcome", t: "Canasta de bienvenida", b: "Queso local, pan de La Espiga, botella de Adobe Guadalupe Tinto.", v: 65 },
@@ -130,7 +130,7 @@ const CHECKOUT_COPY = {
     notes_ph: "Aniversario, alergias, miedo a la terracería…",
     house_h: "Notas de la casa",
     house: [
-      "Check-in a las 4pm. Podemos reservar entrada a las 2pm por $25.",
+      "Check-in a las 3pm. Podemos reservar entrada a las 2pm por $25.",
       "Cancelación gratis hasta 14 días antes. Después, 50% reembolsable.",
       "Fumar solo afuera. Perros bienvenidos con aviso previo.",
     ],
@@ -387,10 +387,6 @@ export function CheckoutPage({
               </div>
             </div>
 
-            <label className="vsc-consent">
-              <input type="checkbox" />
-              <span>{c.consent}</span>
-            </label>
           </div>
 
           <aside className="vsc-aside">
