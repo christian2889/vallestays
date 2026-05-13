@@ -15,6 +15,9 @@ import {
 } from "@/lib/uiprops";
 import { createCheckoutSession } from "./actions";
 import { StripeEmbeddedCheckout } from "@/components/StripeEmbeddedCheckout";
+import { validateCoupon } from "@/app/actions/coupon";
+
+const MXN_RATE = Number(process.env.NEXT_PUBLIC_MXN_RATE || 17.5);
 
 const CHECKOUT_COPY = {
   en: {
@@ -44,25 +47,24 @@ const CHECKOUT_COPY = {
     pri_h: "Price detail",
     pri_nights: "× nights",
     pri_clean: "Cleaning",
-    pri_steward: "Valle steward fee",
     pri_addons: "Add-ons",
-    pri_tax: "Taxes & ISH (4%)",
+    pri_discount: "Discount",
     pri_total: "Total",
     pri_charged: "Charged now via Stripe",
+    coupon_rec: "Use VALLE15 for 15% off →",
+    coupon_ph: "Promo code",
+    coupon_apply: "Apply",
+    coupon_applied: "Applied",
+    coupon_remove: "Remove",
+    coupon_err_invalid: "Invalid or expired code.",
+    curr_label: "Charge in",
     who_h: "Who's coming",
     f_first: "First name",
     f_last: "Last name",
     f_email: "Email",
     f_phone: "Phone",
     f_country: "Country",
-    f_id: "Government ID number",
-    f_id_h: "Required by SECTUR. We never share it.",
     pay_h: "Payment",
-    f_card_name: "Cardholder name",
-    f_card_n: "Card number",
-    f_card_exp: "Expiry",
-    f_card_cvc: "CVC",
-    f_curr: "Charge in",
     pay_note: "Enter your card below — payment is processed securely by Stripe. Confirmation is instant.",
     notes_h: "Anything we should know?",
     notes_ph: "Anniversary, food allergies, dirt-road anxiety…",
@@ -72,7 +74,6 @@ const CHECKOUT_COPY = {
       "Cancel free up to 14 days before check-in. After that, 50% refundable.",
       "Smoking outside only. Dogs welcome with a note in advance.",
     ],
-    consent: "I've read the house notes and cancellation terms.",
     cta: "Pay & confirm",
     cta_busy: "Redirecting to Stripe…",
     foot_note:
@@ -105,25 +106,24 @@ const CHECKOUT_COPY = {
     pri_h: "Detalle del precio",
     pri_nights: "× noches",
     pri_clean: "Limpieza",
-    pri_steward: "Anfitrión local",
     pri_addons: "Extras",
-    pri_tax: "Impuestos e ISH (4%)",
+    pri_discount: "Descuento",
     pri_total: "Total",
     pri_charged: "Se cobra ahora con Stripe",
+    coupon_rec: "Usa VALLE15 y obtén 15% de descuento →",
+    coupon_ph: "Código de promoción",
+    coupon_apply: "Aplicar",
+    coupon_applied: "Aplicado",
+    coupon_remove: "Quitar",
+    coupon_err_invalid: "Código inválido o expirado.",
+    curr_label: "Cobrar en",
     who_h: "Quién viene",
     f_first: "Nombre",
     f_last: "Apellido",
     f_email: "Correo",
     f_phone: "Teléfono",
     f_country: "País",
-    f_id: "Número de identificación oficial",
-    f_id_h: "Requerido por SECTUR. Nunca lo compartimos.",
     pay_h: "Pago",
-    f_card_name: "Nombre del titular",
-    f_card_n: "Número de tarjeta",
-    f_card_exp: "Vencimiento",
-    f_card_cvc: "CVC",
-    f_curr: "Cobrar en",
     pay_note:
       "Ingresa tu tarjeta abajo — el pago lo procesa Stripe de forma segura. Confirmación instantánea.",
     notes_h: "¿Algo que debamos saber?",
@@ -134,7 +134,6 @@ const CHECKOUT_COPY = {
       "Cancelación gratis hasta 14 días antes. Después, 50% reembolsable.",
       "Fumar solo afuera. Perros bienvenidos con aviso previo.",
     ],
-    consent: "Leí las notas de la casa y los términos de cancelación.",
     cta: "Pagar y confirmar",
     cta_busy: "Redirigiendo a Stripe…",
     foot_note:
@@ -177,17 +176,66 @@ export function CheckoutPage({
   const nightly = property ? Math.round(property.price_per_night) : 180;
   const cleaning = isExp ? 0 : Math.round(property?.cleaning_fee || 145);
 
+  // Core state
   const [addons, setAddons] = useState<Record<string, boolean>>({});
   const [submitting, setSubmitting] = useState(false);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // Currency
+  const [currency, setCurrency] = useState<"usd" | "mxn">("usd");
+
+  // Coupon
+  const [couponInput, setCouponInput] = useState("");
+  const [couponApplying, setCouponApplying] = useState(false);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [discountPct, setDiscountPct] = useState(0);
+  const [couponCode, setCouponCode] = useState("");
+  const [couponId, setCouponId] = useState("");
+
+  // Pricing (all in USD)
   const subtotal = nightly * (isExp ? 1 : initialNights);
   const addonTotal = c.addons.reduce((s, a) => s + (addons[a.id] ? a.v : 0), 0);
-  const total = subtotal + cleaning + addonTotal;
+  const discountAmount = Math.round(subtotal * discountPct / 100);
+  const discountedSubtotal = subtotal - discountAmount;
+  const totalUsd = discountedSubtotal + cleaning + addonTotal;
+
+  // Display helpers
+  function fmt(usdAmount: number) {
+    if (currency === "mxn") return `$${Math.round(usdAmount * MXN_RATE).toLocaleString()}`;
+    return `$${usdAmount.toLocaleString()}`;
+  }
+  const currLabel = currency.toUpperCase();
 
   const stepLabels = [c.step_review, c.step_who, c.step_pay, c.step_done];
   const activeStep = clientSecret ? 3 : 2;
+
+  async function handleApplyCoupon() {
+    if (!couponInput.trim()) return;
+    setCouponApplying(true);
+    setCouponError(null);
+    const result = await validateCoupon(couponInput.trim());
+    setCouponApplying(false);
+    if (result.ok) {
+      setDiscountPct(result.discountPct);
+      setCouponCode(couponInput.trim().toUpperCase());
+      setCouponId(result.couponId);
+      setCouponError(null);
+    } else {
+      setCouponError(c.coupon_err_invalid);
+      setDiscountPct(0);
+      setCouponCode("");
+      setCouponId("");
+    }
+  }
+
+  function handleRemoveCoupon() {
+    setDiscountPct(0);
+    setCouponCode("");
+    setCouponId("");
+    setCouponInput("");
+    setCouponError(null);
+  }
 
   return (
     <div className="vs-app vsc-app">
@@ -219,6 +267,11 @@ export function CheckoutPage({
           action={async (formData) => {
             setSubmitting(true);
             setErrorMsg(null);
+            formData.set("total", String(totalUsd));
+            formData.set("currency", currency);
+            formData.set("coupon_code", couponCode);
+            formData.set("coupon_id", couponId);
+            formData.set("discount_amount", String(discountAmount));
             const result = await createCheckoutSession(formData);
             setSubmitting(false);
             if (result.ok) {
@@ -236,9 +289,9 @@ export function CheckoutPage({
           <input type="hidden" name="check_out" value={initialCheckOut || ""} />
           <input type="hidden" name="nights" value={initialNights} />
           <input type="hidden" name="guests" value={initialGuests} />
-          <input type="hidden" name="total" value={total} />
 
           <div className="vsc-form">
+            {/* 01 What you're booking */}
             <div className="vsc-block">
               <div className="vsc-block-h">
                 <span>01</span>
@@ -286,6 +339,7 @@ export function CheckoutPage({
               </div>
             </div>
 
+            {/* 02 Add-ons */}
             <div className="vsc-block">
               <div className="vsc-block-h">
                 <span>02</span>
@@ -311,6 +365,7 @@ export function CheckoutPage({
               </div>
             </div>
 
+            {/* 03 Who's coming */}
             <div className="vsc-block">
               <div className="vsc-block-h">
                 <span>03</span>
@@ -345,6 +400,7 @@ export function CheckoutPage({
               </div>
             </div>
 
+            {/* 04 Payment */}
             <div className="vsc-block">
               <div className="vsc-block-h">
                 <span>04</span>
@@ -362,6 +418,7 @@ export function CheckoutPage({
               )}
             </div>
 
+            {/* 05 Notes */}
             <div className="vsc-block">
               <div className="vsc-block-h">
                 <span>05</span>
@@ -386,44 +443,112 @@ export function CheckoutPage({
                 </ul>
               </div>
             </div>
-
           </div>
 
+          {/* Pricing rail */}
           <aside className="vsc-aside">
             <div className="vsc-rail">
               <div className="vs-eyebrow">{c.pri_h}</div>
+
+              {/* Currency toggle */}
+              <div className="vsc-currency-toggle">
+                <span className="vsc-currency-label">{c.curr_label}</span>
+                <div className="vsc-currency-btns">
+                  {(["usd", "mxn"] as const).map((cur) => (
+                    <button
+                      key={cur}
+                      type="button"
+                      className={"vsc-curr-btn" + (currency === cur ? " on" : "")}
+                      onClick={() => setCurrency(cur)}
+                    >
+                      {cur.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className="vsc-pri">
                 {!isExp && (
                   <div>
                     <span>
-                      ${nightly} {c.pri_nights} {initialNights}
+                      {fmt(nightly)} {c.pri_nights} {initialNights}
                     </span>
-                    <strong>${(nightly * initialNights).toLocaleString()}</strong>
+                    <strong>{fmt(nightly * initialNights)}</strong>
                   </div>
                 )}
                 {isExp && (
                   <div>
                     <span>{itemName}</span>
-                    <strong>${nightly}</strong>
+                    <strong>{fmt(nightly)}</strong>
                   </div>
                 )}
                 {!isExp && (
                   <div>
                     <span>{c.pri_clean}</span>
-                    <strong>${cleaning}</strong>
+                    <strong>{fmt(cleaning)}</strong>
                   </div>
                 )}
                 {addonTotal > 0 && (
                   <div>
                     <span>{c.pri_addons}</span>
-                    <strong>${addonTotal}</strong>
+                    <strong>{fmt(addonTotal)}</strong>
+                  </div>
+                )}
+                {discountAmount > 0 && (
+                  <div className="vsc-pri-discount">
+                    <span>{c.pri_discount} ({couponCode})</span>
+                    <strong>−{fmt(discountAmount)}</strong>
                   </div>
                 )}
                 <div className="vsc-pri-total">
                   <span>{c.pri_total}</span>
-                  <strong>${total.toLocaleString()} USD</strong>
+                  <strong>{fmt(totalUsd)} {currLabel}</strong>
                 </div>
                 <div className="vsc-pri-when">{c.pri_charged}</div>
+              </div>
+
+              {/* Coupon */}
+              <div className="vsc-coupon">
+                {!couponCode ? (
+                  <>
+                    <button
+                      type="button"
+                      className="vsc-coupon-rec"
+                      onClick={() => setCouponInput("VALLE15")}
+                    >
+                      {c.coupon_rec}
+                    </button>
+                    <div className="vsc-coupon-row">
+                      <input
+                        type="text"
+                        className="vsc-coupon-input"
+                        placeholder={c.coupon_ph}
+                        value={couponInput}
+                        onChange={(e) => {
+                          setCouponInput(e.target.value.toUpperCase());
+                          setCouponError(null);
+                        }}
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleApplyCoupon(); } }}
+                      />
+                      <button
+                        type="button"
+                        className="vsc-coupon-apply"
+                        disabled={couponApplying || !couponInput.trim()}
+                        onClick={handleApplyCoupon}
+                      >
+                        {couponApplying ? "…" : c.coupon_apply}
+                      </button>
+                    </div>
+                    {couponError && <div className="vsc-coupon-err">{couponError}</div>}
+                  </>
+                ) : (
+                  <div className="vsc-coupon-applied">
+                    <span>✓ {couponCode} · −{discountPct}%</span>
+                    <button type="button" onClick={handleRemoveCoupon} className="vsc-coupon-remove">
+                      {c.coupon_remove}
+                    </button>
+                  </div>
+                )}
               </div>
 
               {!clientSecret && (

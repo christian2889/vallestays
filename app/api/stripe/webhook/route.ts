@@ -122,6 +122,9 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     kind: (session.metadata?.kind as "stay" | "exp" | undefined) ?? "stay",
     nightsFromMeta: Number(session.metadata?.nights ?? 0) || 0,
     guestsFromMeta: Number(session.metadata?.guests ?? 0) || 0,
+    couponCode: session.metadata?.coupon_code || "",
+    couponId: session.metadata?.coupon_id || null,
+    discountAmountUsd: Number(session.metadata?.discount_amount_usd || 0),
   });
 }
 
@@ -135,6 +138,9 @@ async function convertLeadToBooking(args: {
   kind: "stay" | "exp";
   nightsFromMeta: number;
   guestsFromMeta: number;
+  couponCode?: string;
+  couponId?: string | null;
+  discountAmountUsd?: number;
 }) {
   const lead = await getLead(args.leadId);
   if (!lead) {
@@ -209,11 +215,12 @@ async function convertLeadToBooking(args: {
   const nightly = Number(property.price_per_night) || 0;
   const subtotal = nightly * nights;
   const cleaning = Number(property.cleaning_fee || 0);
-  // Anything paid above (subtotal + cleaning) is from the add-ons selected at
-  // checkout — track it under service_fee on the booking row for now.
-  const addonsAndExtras = Math.max(0, totalUsd - subtotal - cleaning);
-  // Host keeps 75% of (subtotal + cleaning); platform fee covers the rest.
   const hostPayout = Math.round((subtotal * 0.75 + cleaning) * 100) / 100;
+
+  // Coupon from session metadata
+  const couponCode = args.couponCode || "";
+  const couponId = args.couponId || null;
+  const discountAmountUsd = args.discountAmountUsd || 0;
 
   const admin = getSupabaseAdminClient();
   const { data: bookingRow, error: bookingErr } = await admin
@@ -231,7 +238,7 @@ async function convertLeadToBooking(args: {
         price_per_night: nightly,
         subtotal,
         cleaning_fee: cleaning,
-        service_fee: addonsAndExtras,
+        service_fee: 0,
         total_price: totalUsd,
         host_payout: hostPayout,
         currency: (args.currency || "usd").toUpperCase(),
@@ -240,6 +247,8 @@ async function convertLeadToBooking(args: {
         payment_method: "stripe",
         stripe_payment_intent_id: args.paymentIntentId,
         guest_notes: lead.notes,
+        ...(couponId ? { coupon_id: couponId } : {}),
+        ...(discountAmountUsd > 0 ? { discount_amount: discountAmountUsd } : {}),
       },
     ] as never)
     .select("id")

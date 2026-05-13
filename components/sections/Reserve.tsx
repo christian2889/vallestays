@@ -3,8 +3,10 @@
 import { useRef, useState } from "react";
 import { COPY } from "@/lib/data";
 import { useLang } from "@/components/LangContext";
-import { Placeholder } from "@/components/Placeholder";
 import { submitInquiry } from "@/app/actions/inquiry";
+
+const RESERVE_IMG =
+  "https://ex6thmhdsdxhmmgd.public.blob.vercel-storage.com/properties/2f279dce-bf74-4124-90c6-ed3e26cad5c0/imported-1769586591492-0.jpg";
 
 export function Reserve() {
   const { lang } = useLang();
@@ -33,11 +35,11 @@ export function Reserve() {
           </h2>
           <p>{t.reserve.lede}</p>
           <div className="vs-reserve-aside">
-            <Placeholder
-              palette={["#a06b3a", "#e8d4b0", "#241814"]}
-              shape="arch-tall"
-              aspect="3/4"
-              label="HOST — ANA & DIEGO"
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={RESERVE_IMG}
+              alt="Valle Stays property"
+              style={{ width: "100%", aspectRatio: "3/4", objectFit: "cover", borderRadius: 4 }}
             />
           </div>
         </div>

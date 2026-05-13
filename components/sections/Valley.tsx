@@ -2,7 +2,9 @@
 
 import { COPY } from "@/lib/data";
 import { useLang } from "@/components/LangContext";
-import { Placeholder } from "@/components/Placeholder";
+
+const VALLEY_IMG =
+  "https://ex6thmhdsdxhmmgd.public.blob.vercel-storage.com/properties/2f279dce-bf74-4124-90c6-ed3e26cad5c0/1769742811260-DSCF6098-HDR-16.webp";
 
 export function Valley() {
   const { lang } = useLang();
@@ -20,11 +22,11 @@ export function Valley() {
           <p>{t.valley.body_2}</p>
         </div>
         <div className="vs-valley-img">
-          <Placeholder
-            palette={["#8a5a3a", "#e0c890", "#241814"]}
-            shape="rect"
-            aspect="3/4"
-            label="VALLE — VIEW FROM CAÑÓN DE DOÑA PETRA"
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={VALLEY_IMG}
+            alt="Valle de Guadalupe"
+            style={{ width: "100%", aspectRatio: "3/4", objectFit: "cover", borderRadius: 4 }}
           />
         </div>
       </div>
@@ -45,3 +47,4 @@ export function Valley() {
     </section>
   );
 }
+

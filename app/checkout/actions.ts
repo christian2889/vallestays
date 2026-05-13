@@ -17,11 +17,6 @@ type CreateSessionResult =
   | { ok: true; clientSecret: string; sessionId: string; leadId: string }
   | { ok: false; error: string };
 
-/**
- * Creates a Stripe Checkout Session in embedded mode and returns the
- * clientSecret so the front-end can mount <EmbeddedCheckout>. The user
- * never leaves vallestays.app.
- */
 export async function createCheckoutSession(formData: FormData): Promise<CreateSessionResult> {
   const kind = String(formData.get("kind") || "stay");
   const propertyId = String(formData.get("property_id") || "");
@@ -31,7 +26,15 @@ export async function createCheckoutSession(formData: FormData): Promise<CreateS
   const checkOut = String(formData.get("check_out") || "") || null;
   const nights = Number(formData.get("nights") || 0);
   const guests = Number(formData.get("guests") || 1);
-  const total = Number(formData.get("total") || 0);
+  const totalUsd = Number(formData.get("total") || 0);
+  const selectedCurrency = String(formData.get("currency") || "usd").toLowerCase() as "usd" | "mxn";
+  const couponCode = String(formData.get("coupon_code") || "");
+  const couponId = String(formData.get("coupon_id") || "");
+  const discountAmount = Number(formData.get("discount_amount") || 0);
+
+  const mxnRate = Number(process.env.NEXT_PUBLIC_MXN_RATE || 17.5);
+  // total in the selected currency (what Stripe will charge)
+  const total = selectedCurrency === "mxn" ? totalUsd * mxnRate : totalUsd;
 
   const firstName = String(formData.get("first_name") || "");
   const lastName = String(formData.get("last_name") || "");
@@ -41,7 +44,7 @@ export async function createCheckoutSession(formData: FormData): Promise<CreateS
   const guestNotes = String(formData.get("guest_notes") || "");
   const expTitle = String(formData.get("exp_title") || "");
 
-  if (!email || !firstName || total <= 0) {
+  if (!email || !firstName || totalUsd <= 0) {
     return { ok: false, error: "missing_fields" };
   }
 
@@ -53,13 +56,15 @@ export async function createCheckoutSession(formData: FormData): Promise<CreateS
     expTitle ? `Experience: ${expTitle}` : "",
     `Nights: ${nights}`,
     `Guests: ${guests}`,
-    `Total: $${total} USD`,
+    `Total: $${totalUsd} USD`,
+    selectedCurrency === "mxn" ? `Currency: MXN (rate ${mxnRate})` : "",
+    couponCode ? `Coupon: ${couponCode} (-$${discountAmount} USD)` : "",
     country ? `Country: ${country}` : "",
     phone ? `Phone: ${phone}` : "",
     guestNotes ? `Guest note: ${guestNotes}` : "",
   ].filter(Boolean);
 
-  // 1) Create the lead so we can store its id in Stripe metadata
+  // 1) Create lead
   const leadResult = await createLead({
     name: `${firstName} ${lastName}`.trim(),
     email,
@@ -79,9 +84,7 @@ export async function createCheckoutSession(formData: FormData): Promise<CreateS
 
   const leadId = leadResult.id;
 
-  // 2) Build the return URL Stripe will redirect to after the embedded
-  //    payment completes (or fails). The webhook is the canonical place
-  //    where the booking is created — this URL is just the UX hand-off.
+  // 2) Return URL
   const origin = originFromHeaders(await headers());
   const returnParams = new URLSearchParams({
     kind,
@@ -92,7 +95,7 @@ export async function createCheckoutSession(formData: FormData): Promise<CreateS
     ...(checkOut ? { out: checkOut } : {}),
     nights: String(nights),
     guests: String(guests),
-    total: String(total),
+    total: String(totalUsd),
   });
   const returnUrl = `${origin}/confirmed?${returnParams.toString()}&session_id={CHECKOUT_SESSION_ID}`;
 
@@ -106,7 +109,7 @@ export async function createCheckoutSession(formData: FormData): Promise<CreateS
       line_items: [
         {
           price_data: {
-            currency: "usd",
+            currency: selectedCurrency,
             unit_amount: Math.round(total * 100),
             product_data: {
               name: itemLabel,
@@ -122,8 +125,6 @@ export async function createCheckoutSession(formData: FormData): Promise<CreateS
         },
       ],
       payment_intent_data: {
-        // Instant book — capture immediately. Webhook creates the booking
-        // row + sends confirmation emails.
         capture_method: "automatic",
         description: `${SITE} · ${itemLabel}`,
         metadata: {
@@ -133,6 +134,9 @@ export async function createCheckoutSession(formData: FormData): Promise<CreateS
           property_id: propertyId || "",
           nights: String(nights),
           guests: String(guests),
+          coupon_code: couponCode,
+          coupon_id: couponId,
+          discount_amount_usd: String(discountAmount),
         },
       },
       metadata: {
@@ -142,6 +146,9 @@ export async function createCheckoutSession(formData: FormData): Promise<CreateS
         property_id: propertyId || "",
         nights: String(nights),
         guests: String(guests),
+        coupon_code: couponCode,
+        coupon_id: couponId,
+        discount_amount_usd: String(discountAmount),
       },
     });
 
@@ -152,7 +159,7 @@ export async function createCheckoutSession(formData: FormData): Promise<CreateS
     await updateLead(leadId, {
       stripe_session_id: session.id,
       stripe_amount_cents: Math.round(total * 100),
-      stripe_currency: "usd",
+      stripe_currency: selectedCurrency,
     });
 
     return {

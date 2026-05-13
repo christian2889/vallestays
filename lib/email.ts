@@ -3,10 +3,10 @@ import { Resend } from "resend";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM_GUEST =
-  process.env.RESEND_FROM_GUEST ?? "Valle Stays <concierge@vallestays.mx>";
+  process.env.RESEND_FROM_GUEST ?? "Valle Stays <concierge@vallestays.app>";
 const FROM_HOST =
-  process.env.RESEND_FROM_HOST ?? "Valle Stays <concierge@vallestays.mx>";
-const REPLY_TO = process.env.RESEND_REPLY_TO ?? "concierge@vallestays.mx";
+  process.env.RESEND_FROM_HOST ?? "Valle Stays <concierge@vallestays.app>";
+const REPLY_TO = process.env.RESEND_REPLY_TO ?? "concierge@vallestays.app";
 const HOST_BCC = process.env.RESEND_HOST_BCC; // Optional: ops/admin inbox
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://vallestays-jade.vercel.app";
 
@@ -65,7 +65,7 @@ function guestHtml(p: ConfirmationEmailInput) {
           nights: "noches",
           total: "Total cobrado",
           ref: "Referencia",
-          help: "¿Necesitas algo? Responde a este correo o escríbenos a concierge@vallestays.mx.",
+          help: "¿Necesitas algo? Responde a este correo o escríbenos a concierge@vallestays.app.",
           sig: "— El equipo de Valle Stays",
         }
       : {
@@ -78,7 +78,7 @@ function guestHtml(p: ConfirmationEmailInput) {
           nights: "nights",
           total: "Total charged",
           ref: "Reference",
-          help: "Need anything? Reply to this email or write us at concierge@vallestays.mx.",
+          help: "Need anything? Reply to this email or write us at concierge@vallestays.app.",
           sig: "— The Valle Stays team",
         };
 
