@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { STAY_COPY } from "@/lib/data";
 import { useLang } from "@/components/LangContext";
 import { Nav } from "@/components/Nav";
@@ -268,6 +268,7 @@ export function StayPage({
 
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const open = lightboxIndex !== null;
+  const touchStartX = useRef<number | null>(null);
 
   const close = useCallback(() => setLightboxIndex(null), []);
   const next = useCallback(() => {
@@ -384,6 +385,14 @@ export function StayPage({
             role="dialog"
             aria-modal="true"
             onClick={close}
+            onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
+            onTouchEnd={(e) => {
+              if (touchStartX.current === null) return;
+              const dx = e.changedTouches[0].clientX - touchStartX.current;
+              touchStartX.current = null;
+              if (Math.abs(dx) < 40) return;
+              if (dx < 0) next(); else prev();
+            }}
           >
             <button
               type="button"
