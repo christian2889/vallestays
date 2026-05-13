@@ -486,7 +486,7 @@ export function StayPage({
               </div>
               <div className="vsd-host-text">
                 <div className="vs-eyebrow">{s.host_h}</div>
-                <h3>{lang === "en" ? "Local steward" : "Anfitrión local"}</h3>
+                <h3>Fernanda</h3>
                 <p>
                   &quot;
                   {lang === "en"
