@@ -196,9 +196,10 @@ export function CheckoutPage({
   // Pricing (all in USD)
   const subtotal = nightly * (isExp ? 1 : initialNights);
   const addonTotal = c.addons.reduce((s, a) => s + (addons[a.id] ? a.v : 0), 0);
-  const discountAmount = Math.round(subtotal * discountPct / 100);
-  const discountedSubtotal = subtotal - discountAmount;
-  const totalUsd = discountedSubtotal + cleaning + addonTotal;
+  // Discount applies to nights + cleaning, NOT to add-ons
+  const discountableBase = subtotal + cleaning;
+  const discountAmount = Math.round(discountableBase * discountPct / 100);
+  const totalUsd = discountableBase - discountAmount + addonTotal;
 
   // Display helpers
   function fmt(usdAmount: number) {
