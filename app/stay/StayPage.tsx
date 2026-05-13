@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { STAY_COPY } from "@/lib/data";
 import { useLang } from "@/components/LangContext";
 import { Nav } from "@/components/Nav";
@@ -263,7 +263,35 @@ export function StayPage({
   const { lang } = useLang();
   const s = STAY_COPY[lang];
   const galleryImgs = p.images.slice(0, 5);
-  const sliderImgs = p.images.slice(5);
+  const totalImages = p.images.length;
+  const remaining = Math.max(0, totalImages - 5);
+
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const open = lightboxIndex !== null;
+
+  const close = useCallback(() => setLightboxIndex(null), []);
+  const next = useCallback(() => {
+    setLightboxIndex((i) => (i === null ? null : (i + 1) % totalImages));
+  }, [totalImages]);
+  const prev = useCallback(() => {
+    setLightboxIndex((i) => (i === null ? null : (i - 1 + totalImages) % totalImages));
+  }, [totalImages]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") close();
+      else if (e.key === "ArrowRight") next();
+      else if (e.key === "ArrowLeft") prev();
+    };
+    document.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [open, close, next, prev]);
 
   return (
     <div className="vs-app vsd-app">
@@ -300,7 +328,12 @@ export function StayPage({
         </section>
 
         <section className="vsd-gallery">
-          <div className="vsd-gallery-hero">
+          <button
+            type="button"
+            className="vsd-gallery-hero"
+            onClick={() => galleryImgs[0] && setLightboxIndex(0)}
+            aria-label={lang === "en" ? "Open photo gallery" : "Abrir galería"}
+          >
             {galleryImgs[0] ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -311,12 +344,19 @@ export function StayPage({
             ) : (
               <Placeholder palette={paletteFor(p)} shape={shapeFor(p)} aspect="3/2" />
             )}
-          </div>
+          </button>
           <div className="vsd-gallery-grid">
             {[1, 2, 3, 4].map((i) => {
               const img = galleryImgs[i];
+              const isLast = i === 4 && remaining > 0;
               return (
-                <div key={i} className="vsd-gallery-cell">
+                <button
+                  type="button"
+                  key={i}
+                  className="vsd-gallery-cell"
+                  onClick={() => img && setLightboxIndex(i)}
+                  aria-label={lang === "en" ? `Open photo ${i + 1}` : `Abrir foto ${i + 1}`}
+                >
                   {img ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -327,31 +367,65 @@ export function StayPage({
                   ) : (
                     <Placeholder palette={paletteFor(p)} shape={shapeFor(p)} aspect="1/1" />
                   )}
-                </div>
+                  {isLast && (
+                    <span className="vsd-gallery-more">
+                      +{remaining} {lang === "en" ? "more" : "más"}
+                    </span>
+                  )}
+                </button>
               );
             })}
           </div>
         </section>
 
-        {sliderImgs.length > 0 && (
-          <section className="vsd-slider-section">
-            <div className="vsd-slider-head">
-              <div className="vs-eyebrow">
-                {lang === "en" ? "More photos" : "Más fotos"} · {sliderImgs.length}
-              </div>
-              <div className="vsd-slider-hint">
-                {lang === "en" ? "Swipe →" : "Desliza →"}
-              </div>
+        {open && lightboxIndex !== null && (
+          <div
+            className="vsd-lightbox"
+            role="dialog"
+            aria-modal="true"
+            onClick={close}
+          >
+            <button
+              type="button"
+              className="vsd-lb-close"
+              onClick={close}
+              aria-label={lang === "en" ? "Close" : "Cerrar"}
+            >
+              ×
+            </button>
+            <button
+              type="button"
+              className="vsd-lb-nav vsd-lb-prev"
+              onClick={(e) => {
+                e.stopPropagation();
+                prev();
+              }}
+              aria-label={lang === "en" ? "Previous" : "Anterior"}
+            >
+              ‹
+            </button>
+            <div className="vsd-lb-frame" onClick={(e) => e.stopPropagation()}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={p.images[lightboxIndex].url}
+                alt={p.images[lightboxIndex].alt_text || ""}
+              />
             </div>
-            <div className="vsd-slider">
-              {sliderImgs.map((img, i) => (
-                <div key={img.id || i} className="vsd-slide">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={img.url} alt={img.alt_text || ""} loading="lazy" />
-                </div>
-              ))}
+            <button
+              type="button"
+              className="vsd-lb-nav vsd-lb-next"
+              onClick={(e) => {
+                e.stopPropagation();
+                next();
+              }}
+              aria-label={lang === "en" ? "Next" : "Siguiente"}
+            >
+              ›
+            </button>
+            <div className="vsd-lb-counter">
+              {lightboxIndex + 1} / {totalImages}
             </div>
-          </section>
+          </div>
         )}
 
         <section className="vsd-body">
