@@ -65,7 +65,7 @@ const CONF_COPY = {
     add_cta_exp: "Browse experiences",
     add_cta_g: "Open the guidebook",
     bottom: "Saludos desde el valle.",
-    bottom_sig: "— Marcela, Tomás & the Valle Stays team",
+    bottom_sig: "— Fernanda & Christian",
     contact_h: "Need us?",
     contact_list: [
       { label: "Concierge (24h, EN/ES)", value: "+52 646 341 8025", href: "tel:+526463418025" },
@@ -125,7 +125,7 @@ const CONF_COPY = {
     add_cta_exp: "Ver experiencias",
     add_cta_g: "Abrir la guía",
     bottom: "Saludos desde el valle.",
-    bottom_sig: "— Marcela, Tomás y el equipo de Valle Stays",
+    bottom_sig: "— Fernanda & Christian",
     contact_h: "¿Nos necesitas?",
     contact_list: [
       { label: "Concierge (24h, EN/ES)", value: "+52 646 341 8025", href: "tel:+526463418025" },
