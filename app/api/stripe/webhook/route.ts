@@ -125,7 +125,21 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     couponCode: session.metadata?.coupon_code || "",
     couponId: session.metadata?.coupon_id || null,
     discountAmountUsd: Number(session.metadata?.discount_amount_usd || 0),
+    addonsRaw: session.metadata?.addons || "",
   });
+}
+
+function parseAddons(raw: string | undefined | null): { name: string; price: number }[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((a) => a && typeof a.name === "string" && typeof a.price === "number")
+      .map((a) => ({ name: String(a.name), price: Number(a.price) }));
+  } catch {
+    return [];
+  }
 }
 
 async function convertLeadToBooking(args: {
@@ -141,6 +155,7 @@ async function convertLeadToBooking(args: {
   couponCode?: string;
   couponId?: string | null;
   discountAmountUsd?: number;
+  addonsRaw?: string;
 }) {
   const lead = await getLead(args.leadId);
   if (!lead) {
@@ -187,6 +202,7 @@ async function convertLeadToBooking(args: {
       total: totalUsd,
       currency: args.currency,
       reference: shortRef(args.leadId),
+      addons: parseAddons(args.addonsRaw),
     });
     return;
   }
@@ -287,6 +303,7 @@ async function convertLeadToBooking(args: {
     total: totalUsd,
     currency: args.currency,
     reference: bookingRow.id,
+    addons: parseAddons(args.addonsRaw),
   });
 }
 
@@ -296,6 +313,7 @@ async function sendBookingEmails(args: {
   total: number;
   currency: string;
   reference: string;
+  addons?: { name: string; price: number }[];
 }) {
   const lang: "en" | "es" = "en";
   const property = args.lead.property;
@@ -329,6 +347,7 @@ async function sendBookingEmails(args: {
     currency: args.currency,
     reference: shortRef(args.reference),
     lang,
+    addons: args.addons,
   });
 }
 

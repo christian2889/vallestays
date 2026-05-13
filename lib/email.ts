@@ -26,7 +26,30 @@ export type ConfirmationEmailInput = {
   currency: string;
   reference: string;
   lang: "en" | "es";
+  addons?: { name: string; price: number }[];
 };
+
+function addonsRowsHtml(
+  addons: { name: string; price: number }[] | undefined,
+  currency: string,
+  label: string
+) {
+  if (!addons || addons.length === 0) return "";
+  const rows = addons
+    .map(
+      (a) =>
+        `<tr><td style="color:#6b6356;padding:4px 0;font-size:13px;">↳ ${escapeHtml(
+          a.name
+        )}</td><td style="text-align:right;font-weight:500;font-size:13px;">${fmtCurrency(
+          a.price,
+          currency
+        )}</td></tr>`
+    )
+    .join("");
+  return `<tr><td colspan="2" style="padding-top:10px;color:#6b6356;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;">${escapeHtml(
+    label
+  )}</td></tr>${rows}`;
+}
 
 function fmtCurrency(amount: number, currency: string) {
   try {
@@ -67,6 +90,7 @@ function guestHtml(p: ConfirmationEmailInput) {
           ref: "Referencia",
           help: "¿Necesitas algo? Responde a este correo o escríbenos a concierge@vallestays.app.",
           sig: "— El equipo de Valle Stays",
+          addons: "Extras",
         }
       : {
           h1: "You're in. See you in the valley.",
@@ -80,6 +104,7 @@ function guestHtml(p: ConfirmationEmailInput) {
           ref: "Reference",
           help: "Need anything? Reply to this email or write us at concierge@vallestays.app.",
           sig: "— The Valle Stays team",
+          addons: "Add-ons",
         };
 
   return `<!doctype html>
@@ -95,6 +120,7 @@ function guestHtml(p: ConfirmationEmailInput) {
         <tr><td style="color:#6b6356;padding:6px 0;">${labels.nights}</td><td style="text-align:right;font-weight:500;">${p.nights}</td></tr>
         <tr><td style="color:#6b6356;padding:6px 0;">${labels.guests}</td><td style="text-align:right;font-weight:500;">${p.guests}</td></tr>
         <tr><td style="color:#6b6356;padding:6px 0;">${labels.ref}</td><td style="text-align:right;font-family:Menlo,monospace;font-size:12px;">${escapeHtml(p.reference)}</td></tr>
+        ${addonsRowsHtml(p.addons, p.currency, labels.addons)}
         <tr><td colspan="2" style="border-top:1px solid #cfc5b3;padding-top:12px;"></td></tr>
         <tr><td style="color:#6b6356;padding:6px 0;">${labels.total}</td><td style="text-align:right;font-family:'Cormorant Garamond',Georgia,serif;font-size:22px;color:#b04a2f;">${fmtCurrency(p.total, p.currency)}</td></tr>
       </table>
@@ -117,6 +143,7 @@ function hostHtml(p: ConfirmationEmailInput) {
           total: "Total",
           ref: "Referencia",
           link: "Ver en panel",
+          addons: "Extras",
         }
       : {
           h1: "New booking confirmed",
@@ -127,6 +154,7 @@ function hostHtml(p: ConfirmationEmailInput) {
           total: "Total",
           ref: "Reference",
           link: "Open dashboard",
+          addons: "Add-ons",
         };
 
   return `<!doctype html>
@@ -139,6 +167,7 @@ function hostHtml(p: ConfirmationEmailInput) {
       <tr><td style="color:#6b6356;padding:6px 0;">Property</td><td>${escapeHtml(p.propertyName)}</td></tr>
       <tr><td style="color:#6b6356;padding:6px 0;">${labels.when}</td><td>${escapeHtml(p.checkIn ?? "—")} → ${escapeHtml(p.checkOut ?? "—")} (${p.nights}n)</td></tr>
       <tr><td style="color:#6b6356;padding:6px 0;">${labels.guests}</td><td>${p.guests}</td></tr>
+      ${addonsRowsHtml(p.addons, p.currency, labels.addons)}
       <tr><td style="color:#6b6356;padding:6px 0;">${labels.total}</td><td style="font-family:'Cormorant Garamond',Georgia,serif;font-size:22px;color:#b04a2f;">${fmtCurrency(p.total, p.currency)}</td></tr>
       <tr><td style="color:#6b6356;padding:6px 0;">${labels.ref}</td><td style="font-family:Menlo,monospace;font-size:12px;">${escapeHtml(p.reference)}</td></tr>
     </table>

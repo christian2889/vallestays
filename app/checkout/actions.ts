@@ -31,6 +31,21 @@ export async function createCheckoutSession(formData: FormData): Promise<CreateS
   const couponCode = String(formData.get("coupon_code") || "");
   const couponId = String(formData.get("coupon_id") || "");
   const discountAmount = Number(formData.get("discount_amount") || 0);
+  const addonsRaw = String(formData.get("addons") || "[]");
+  let selectedAddons: { name: string; price: number }[] = [];
+  try {
+    const parsed = JSON.parse(addonsRaw);
+    if (Array.isArray(parsed)) {
+      selectedAddons = parsed
+        .filter((a) => a && typeof a.name === "string" && typeof a.price === "number")
+        .map((a) => ({ name: String(a.name), price: Number(a.price) }));
+    }
+  } catch {
+    selectedAddons = [];
+  }
+  const addonsLabel = selectedAddons
+    .map((a) => `${a.name} ($${a.price})`)
+    .join(", ");
 
   const mxnRate = Number(process.env.NEXT_PUBLIC_MXN_RATE || 17.5);
   // total in the selected currency (what Stripe will charge)
@@ -59,6 +74,7 @@ export async function createCheckoutSession(formData: FormData): Promise<CreateS
     `Total: $${totalUsd} USD`,
     selectedCurrency === "mxn" ? `Currency: MXN (rate ${mxnRate})` : "",
     couponCode ? `Coupon: ${couponCode} (-$${discountAmount} USD)` : "",
+    addonsLabel ? `Add-ons: ${addonsLabel}` : "",
     country ? `Country: ${country}` : "",
     phone ? `Phone: ${phone}` : "",
     guestNotes ? `Guest note: ${guestNotes}` : "",
@@ -137,6 +153,7 @@ export async function createCheckoutSession(formData: FormData): Promise<CreateS
           coupon_code: couponCode,
           coupon_id: couponId,
           discount_amount_usd: String(discountAmount),
+          addons: JSON.stringify(selectedAddons).slice(0, 500),
         },
       },
       metadata: {

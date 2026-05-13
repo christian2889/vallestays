@@ -273,6 +273,10 @@ export function CheckoutPage({
             formData.set("coupon_code", couponCode);
             formData.set("coupon_id", couponId);
             formData.set("discount_amount", String(discountAmount));
+            const selectedAddons = c.addons
+              .filter((a) => addons[a.id])
+              .map((a) => ({ name: a.t, price: a.v }));
+            formData.set("addons", JSON.stringify(selectedAddons));
             const result = await createCheckoutSession(formData);
             setSubmitting(false);
             if (result.ok) {
