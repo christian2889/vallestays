@@ -263,6 +263,7 @@ export function StayPage({
   const { lang } = useLang();
   const s = STAY_COPY[lang];
   const galleryImgs = p.images.slice(0, 5);
+  const sliderImgs = p.images.slice(5);
 
   return (
     <div className="vs-app vsd-app">
@@ -331,6 +332,27 @@ export function StayPage({
             })}
           </div>
         </section>
+
+        {sliderImgs.length > 0 && (
+          <section className="vsd-slider-section">
+            <div className="vsd-slider-head">
+              <div className="vs-eyebrow">
+                {lang === "en" ? "More photos" : "Más fotos"} · {sliderImgs.length}
+              </div>
+              <div className="vsd-slider-hint">
+                {lang === "en" ? "Swipe →" : "Desliza →"}
+              </div>
+            </div>
+            <div className="vsd-slider">
+              {sliderImgs.map((img, i) => (
+                <div key={img.id || i} className="vsd-slide">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={img.url} alt={img.alt_text || ""} loading="lazy" />
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         <section className="vsd-body">
           <div className="vsd-body-left">

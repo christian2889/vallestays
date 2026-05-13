@@ -333,10 +333,10 @@ export function SearchPage({ properties }: { properties: UIProperty[] }) {
                         <img
                           src={p.primary_image_url}
                           alt={nameFor(p, lang)}
-                          style={{ width: "100%", aspectRatio: "4/3", objectFit: "cover", borderRadius: 6 }}
+                          style={{ width: "100%", aspectRatio: "4/5", objectFit: "cover", borderRadius: 6 }}
                         />
                       ) : (
-                        <Placeholder palette={paletteFor(p)} shape={shapeFor(p)} aspect="4/3" />
+                        <Placeholder palette={paletteFor(p)} shape={shapeFor(p)} aspect="4/5" />
                       )}
                       <div className="vss-card-tag">
                         <i style={{ background: avail ? "#5b9b5b" : "#bd5a2a" }}></i>

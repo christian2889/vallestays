@@ -131,7 +131,7 @@
 }
 .vss-card {
   display: grid;
-  grid-template-columns: 280px 1fr;
+  grid-template-columns: 240px 1fr;
   gap: 24px;
   padding: 24px 0;
   border-bottom: 1px solid var(--vs-line);
