@@ -174,7 +174,7 @@ export function CheckoutPage({
   const itemImg = property?.primary_image_url ?? null;
 
   const nightly = property ? Math.round(property.price_per_night) : 180;
-  const cleaning = isExp ? 0 : Math.round(property?.cleaning_fee || 145);
+  const cleaning = isExp ? 0 : Math.round(property?.cleaning_fee ?? 0);
 
   // Core state
   const [addons, setAddons] = useState<Record<string, boolean>>({});
