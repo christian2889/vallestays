@@ -91,13 +91,11 @@
 /* Lightbox */
 .vsd-lightbox {
   position: fixed; inset: 0;
-  background: rgba(10, 10, 10, 0.94);
+  background: rgba(0, 0, 0, 0.96);
   z-index: 100;
-  display: grid;
-  grid-template-columns: auto 1fr auto;
+  display: flex;
   align-items: center;
-  padding: 24px;
-  gap: 12px;
+  justify-content: center;
   animation: vsd-lb-fade .18s ease-out;
 }
 @keyframes vsd-lb-fade {
@@ -105,61 +103,66 @@
   to { opacity: 1; }
 }
 .vsd-lb-frame {
-  display: grid; place-items: center;
-  width: 100%; height: 100%;
-  min-width: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 56px 0;
 }
 .vsd-lb-frame img {
   max-width: 100%;
-  max-height: calc(100vh - 96px);
+  max-height: 100%;
+  width: auto;
+  height: auto;
   object-fit: contain;
-  border-radius: 4px;
+  border-radius: 2px;
   display: block;
 }
 .vsd-lb-close {
   position: absolute;
-  top: 18px; right: 22px;
+  top: 16px; right: 16px;
   width: 40px; height: 40px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.25);
   color: #fff;
   font-size: 24px; line-height: 1;
   cursor: pointer;
   display: grid; place-items: center;
   transition: background .15s;
+  z-index: 2;
 }
-.vsd-lb-close:hover { background: rgba(255, 255, 255, 0.2); }
+.vsd-lb-close:hover { background: rgba(255, 255, 255, 0.28); }
 .vsd-lb-nav {
+  position: absolute;
+  top: 50%; transform: translateY(-50%);
   width: 48px; height: 48px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.12);
   border: 1px solid rgba(255, 255, 255, 0.2);
   color: #fff;
   font-size: 32px; line-height: 1;
   cursor: pointer;
   display: grid; place-items: center;
-  flex-shrink: 0;
   transition: background .15s;
   font-family: var(--vs-display);
+  z-index: 2;
 }
 .vsd-lb-nav:hover { background: rgba(255, 255, 255, 0.25); }
+.vsd-lb-prev { left: 16px; }
+.vsd-lb-next { right: 16px; }
 .vsd-lb-counter {
   position: absolute;
-  bottom: 24px; left: 50%;
+  bottom: 20px; left: 50%;
   transform: translateX(-50%);
   font-family: var(--vs-mono); font-size: 12px;
   letter-spacing: 0.1em;
   color: #fff;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.55);
   padding: 6px 14px;
   border-radius: 999px;
-}
-@media (max-width: 720px) {
-  .vsd-lightbox { padding: 16px 8px; gap: 4px; }
-  .vsd-lb-nav { width: 40px; height: 40px; font-size: 26px; }
-  .vsd-lb-close { top: 12px; right: 12px; width: 36px; height: 36px; font-size: 22px; }
-  .vsd-lb-frame img { max-height: calc(100vh - 80px); }
+  z-index: 2;
 }
 
 /* Body grid */
