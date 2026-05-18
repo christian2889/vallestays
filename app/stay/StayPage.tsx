@@ -23,12 +23,12 @@ function MiniCalendar({
   s,
   range,
   setRange,
-  unavailable,
+  occupied,
 }: {
   s: (typeof STAY_COPY)["en"] | (typeof STAY_COPY)["es"];
   range: CalRange;
   setRange: (r: CalRange) => void;
-  unavailable: Date[];
+  occupied: Set<string>;
 }) {
   const [view, setView] = useState(() => {
     const d = new Date();
@@ -54,8 +54,11 @@ function MiniCalendar({
     return { y, m, cells };
   }
 
+  function key(d: Date) {
+    return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  }
   function fmt(d: Date | null) {
-    return d ? `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}` : "";
+    return d ? key(d) : "";
   }
   function inRange(d: Date | null) {
     if (!range.start || !range.end || !d) return false;
@@ -67,19 +70,47 @@ function MiniCalendar({
   function isEnd(d: Date | null) {
     return !!(range.end && d && fmt(d) === fmt(range.end));
   }
-  function isUnavail(d: Date | null) {
-    return !!d && unavailable.some((u) => fmt(u) === fmt(d));
+  // A "night" is occupied when someone is staying that night.
+  function nightOccupied(d: Date | null) {
+    return !!d && occupied.has(key(d));
   }
   function isPast(d: Date | null) {
     return !!d && d < new Date(new Date().setHours(0, 0, 0, 0));
   }
+  // First occupied night strictly after `from` — that date is still a
+  // valid checkout (turnover: you leave the morning the next guest arrives).
+  function firstBlockAfter(from: Date): Date | null {
+    const c = new Date(from);
+    for (let i = 0; i < 400; i++) {
+      c.setDate(c.getDate() + 1);
+      if (occupied.has(key(c))) return new Date(c);
+    }
+    return null;
+  }
+
+  // Can this date be clicked given the current selection state?
+  function selectable(d: Date | null): boolean {
+    if (!d || isPast(d)) return false;
+    if (!range.start || range.end) {
+      // Choosing a check-in: that night must be free.
+      return !nightOccupied(d);
+    }
+    if (d <= range.start) {
+      // Re-pick the check-in.
+      return !nightOccupied(d);
+    }
+    // Choosing a checkout: every night from start..d-1 must be free.
+    // You CAN check out on the first blocked night itself (turnover).
+    const block = firstBlockAfter(range.start);
+    return !block || d <= block;
+  }
 
   function pick(d: Date | null) {
-    if (!d || isUnavail(d) || isPast(d)) return;
-    if (!range.start || (range.start && range.end)) {
+    if (!selectable(d) || !d) return;
+    if (!range.start || range.end) {
       setRange({ start: d, end: null });
-    } else if (d < range.start) {
-      setRange({ start: d, end: range.start });
+    } else if (d <= range.start) {
+      setRange({ start: d, end: null });
     } else {
       setRange({ start: range.start, end: d });
     }
@@ -104,7 +135,7 @@ function MiniCalendar({
         {data.cells.map((d, i) => {
           const cls = ["vsd-cal-c"];
           if (!d) cls.push("empty");
-          else if (isPast(d) || isUnavail(d)) cls.push("off");
+          else if (!isStart(d) && !isEnd(d) && !selectable(d)) cls.push("off");
           if (isStart(d)) cls.push("start");
           if (isEnd(d)) cls.push("end");
           if (inRange(d) && !isStart(d) && !isEnd(d)) cls.push("in");
@@ -155,25 +186,25 @@ function BookingWidget({
   lang: "en" | "es";
   blockedRanges: { start: string; end: string }[];
 }) {
-  const unavailable = useMemo(() => {
-    const out: Date[] = [];
+  // Set of occupied NIGHT keys "Y-M-D" (month 0-indexed, matches calendar).
+  // A range [start, end) occupies nights start..end-1; the end date is the
+  // existing guest's checkout, so that night stays free (turnover).
+  const occupied = useMemo(() => {
+    const set = new Set<string>();
     for (const r of blockedRanges) {
-      // Parse YYYY-MM-DD as a local date (avoid UTC shift)
       const [sy, sm, sd] = r.start.split("-").map(Number);
       const [ey, em, ed] = r.end.split("-").map(Number);
       if (!sy || !ey) continue;
       const cur = new Date(sy, sm - 1, sd);
       const end = new Date(ey, em - 1, ed);
-      // Checkout date is the day the guest leaves — that night is free,
-      // so mark [start, end) as unavailable.
       let guard = 0;
       while (cur < end && guard < 1500) {
-        out.push(new Date(cur));
+        set.add(`${cur.getFullYear()}-${cur.getMonth()}-${cur.getDate()}`);
         cur.setDate(cur.getDate() + 1);
         guard++;
       }
     }
-    return out;
+    return set;
   }, [blockedRanges]);
 
   const [range, setRange] = useState<CalRange>({ start: null, end: null });
@@ -231,7 +262,7 @@ function BookingWidget({
         </div>
       </div>
 
-      <MiniCalendar s={s} range={range} setRange={setRange} unavailable={unavailable} />
+      <MiniCalendar s={s} range={range} setRange={setRange} occupied={occupied} />
 
       <div className="vsd-book-totals">
         <div>
