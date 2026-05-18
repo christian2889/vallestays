@@ -453,6 +453,11 @@
 }
 .vsd-book-totals > div.total b { font-weight: 400; }
 .vsd-book-cta { width: 100%; justify-content: center; padding: 14px; font-size: 14px; }
+.vsd-book-cta:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
 .vsd-book-note {
   font-family: var(--vs-mono); font-size: 10px;
   color: var(--vs-muted); margin: 0;

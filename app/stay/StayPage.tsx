@@ -24,11 +24,13 @@ function MiniCalendar({
   range,
   setRange,
   occupied,
+  minNights,
 }: {
   s: (typeof STAY_COPY)["en"] | (typeof STAY_COPY)["es"];
   range: CalRange;
   setRange: (r: CalRange) => void;
   occupied: Set<string>;
+  minNights: number;
 }) {
   const [view, setView] = useState(() => {
     const d = new Date();
@@ -87,20 +89,35 @@ function MiniCalendar({
     }
     return null;
   }
+  function dayDiff(a: Date, b: Date) {
+    return Math.round((b.getTime() - a.getTime()) / 86400000);
+  }
+  // Are the next `minNights` nights starting at `d` all free?
+  function hasMinFreeNights(d: Date) {
+    const c = new Date(d);
+    for (let i = 0; i < minNights; i++) {
+      if (occupied.has(key(c))) return false;
+      c.setDate(c.getDate() + 1);
+    }
+    return true;
+  }
 
   // Can this date be clicked given the current selection state?
   function selectable(d: Date | null): boolean {
     if (!d || isPast(d)) return false;
     if (!range.start || range.end) {
-      // Choosing a check-in: that night must be free.
-      return !nightOccupied(d);
+      // Choosing a check-in: that night plus enough nights for the
+      // minimum stay must be free.
+      return !nightOccupied(d) && hasMinFreeNights(d);
     }
     if (d <= range.start) {
       // Re-pick the check-in.
-      return !nightOccupied(d);
+      return !nightOccupied(d) && hasMinFreeNights(d);
     }
-    // Choosing a checkout: every night from start..d-1 must be free.
-    // You CAN check out on the first blocked night itself (turnover).
+    // Choosing a checkout: must satisfy the minimum-night stay AND
+    // every night from start..d-1 must be free. You CAN check out on
+    // the first blocked night itself (turnover).
+    if (dayDiff(range.start, d) < minNights) return false;
     const block = firstBlockAfter(range.start);
     return !block || d <= block;
   }
@@ -207,6 +224,8 @@ function BookingWidget({
     return set;
   }, [blockedRanges]);
 
+  const minNights = Math.max(1, p.min_nights ?? 1);
+
   const [range, setRange] = useState<CalRange>({ start: null, end: null });
   const [guests, setGuests] = useState(2);
 
@@ -230,9 +249,10 @@ function BookingWidget({
     return `${d.getFullYear()}-${m}-${day}`;
   }
 
+  const validRange = !!(range.start && range.end && nights >= minNights);
   const checkoutHref =
     `/checkout?kind=stay&id=${p.id}&lang=${lang}` +
-    `&nights=${nights || 4}&guests=${guests}` +
+    `&nights=${nights}&guests=${guests}` +
     `&in=${fmtIso(range.start)}&out=${fmtIso(range.end)}`;
 
   return (
@@ -262,7 +282,13 @@ function BookingWidget({
         </div>
       </div>
 
-      <MiniCalendar s={s} range={range} setRange={setRange} occupied={occupied} />
+      <MiniCalendar
+        s={s}
+        range={range}
+        setRange={setRange}
+        occupied={occupied}
+        minNights={minNights}
+      />
 
       <div className="vsd-book-totals">
         <div>
@@ -281,9 +307,25 @@ function BookingWidget({
         </div>
       </div>
 
-      <Link className="vs-btn vs-btn-dark vsd-book-cta" href={checkoutHref}>
-        {s.book_cta} →
-      </Link>
+      {validRange ? (
+        <Link className="vs-btn vs-btn-dark vsd-book-cta" href={checkoutHref}>
+          {s.book_cta} →
+        </Link>
+      ) : (
+        <button
+          type="button"
+          className="vs-btn vs-btn-dark vsd-book-cta"
+          disabled
+          aria-disabled="true"
+        >
+          {s.book_pick}
+        </button>
+      )}
+      {minNights > 1 && (
+        <p className="vsd-book-note">
+          {minNights} {s.book_min}
+        </p>
+      )}
       <p className="vsd-book-note">{s.book_note}</p>
     </aside>
   );
