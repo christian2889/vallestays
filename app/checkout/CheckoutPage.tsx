@@ -13,6 +13,7 @@ import {
   paletteFor,
   shapeFor,
 } from "@/lib/uiprops";
+import { staySubtotalFromIso } from "@/lib/pricing";
 import { createCheckoutSession } from "./actions";
 import { StripeEmbeddedCheckout } from "@/components/StripeEmbeddedCheckout";
 import { validateCoupon } from "@/app/actions/coupon";
@@ -46,6 +47,7 @@ const CHECKOUT_COPY = {
     ],
     pri_h: "Price detail",
     pri_nights: "× nights",
+    pri_wknd: "× weekend nights",
     pri_clean: "Cleaning",
     pri_addons: "Add-ons",
     pri_discount: "Discount",
@@ -105,6 +107,7 @@ const CHECKOUT_COPY = {
     ],
     pri_h: "Detalle del precio",
     pri_nights: "× noches",
+    pri_wknd: "× noches de fin de semana",
     pri_clean: "Limpieza",
     pri_addons: "Extras",
     pri_discount: "Descuento",
@@ -173,8 +176,19 @@ export function CheckoutPage({
   const itemShape = property ? shapeFor(property) : "arch";
   const itemImg = property?.primary_image_url ?? null;
 
-  const nightly = property ? Math.round(property.price_per_night) : 180;
+  const weekdayPrice = property ? Math.round(property.price_per_night) : 180;
+  const weekendPrice = property
+    ? Math.round(property.weekend_price ?? property.price_per_night)
+    : 180;
+  const nightly = weekdayPrice;
   const cleaning = isExp ? 0 : Math.round(property?.cleaning_fee ?? 0);
+  const stayBreakdown = staySubtotalFromIso({
+    checkInIso: initialCheckIn,
+    checkOutIso: initialCheckOut,
+    weekdayPrice,
+    weekendPrice,
+    fallbackNights: initialNights,
+  });
 
   // Core state
   const [addons, setAddons] = useState<Record<string, boolean>>({});
@@ -193,8 +207,8 @@ export function CheckoutPage({
   const [couponCode, setCouponCode] = useState("");
   const [couponId, setCouponId] = useState("");
 
-  // Pricing (all in USD)
-  const subtotal = nightly * (isExp ? 1 : initialNights);
+  // Pricing (all in USD) — stays use weekday/weekend split
+  const subtotal = isExp ? nightly : stayBreakdown.subtotal;
   const addonTotal = c.addons.reduce((s, a) => s + (addons[a.id] ? a.v : 0), 0);
   // Discount applies to nights + cleaning, NOT to add-ons
   const discountableBase = subtotal + cleaning;
@@ -473,13 +487,32 @@ export function CheckoutPage({
               </div>
 
               <div className="vsc-pri">
-                {!isExp && (
-                  <div>
-                    <span>
-                      {fmt(nightly)} {c.pri_nights} {initialNights}
-                    </span>
-                    <strong>{fmt(nightly * initialNights)}</strong>
-                  </div>
+                {!isExp && weekendPrice !== weekdayPrice && stayBreakdown.weekendNights > 0 ? (
+                  <>
+                    {stayBreakdown.weekdayNights > 0 && (
+                      <div>
+                        <span>
+                          {fmt(weekdayPrice)} {c.pri_nights} {stayBreakdown.weekdayNights}
+                        </span>
+                        <strong>{fmt(weekdayPrice * stayBreakdown.weekdayNights)}</strong>
+                      </div>
+                    )}
+                    <div>
+                      <span>
+                        {fmt(weekendPrice)} {c.pri_wknd} {stayBreakdown.weekendNights}
+                      </span>
+                      <strong>{fmt(weekendPrice * stayBreakdown.weekendNights)}</strong>
+                    </div>
+                  </>
+                ) : (
+                  !isExp && (
+                    <div>
+                      <span>
+                        {fmt(nightly)} {c.pri_nights} {initialNights}
+                      </span>
+                      <strong>{fmt(subtotal)}</strong>
+                    </div>
+                  )
                 )}
                 {isExp && (
                   <div>

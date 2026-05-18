@@ -11,6 +11,7 @@ import { getSupabaseAdminClient, findOrCreateGuestUser } from "@/lib/supabase/ad
 import { sendConfirmationEmails } from "@/lib/email";
 import { SITE } from "@/lib/supabase/server";
 import { localeFor, nameFor } from "@/lib/uiprops";
+import { staySubtotalFromIso } from "@/lib/pricing";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -228,8 +229,16 @@ async function convertLeadToBooking(args: {
     Number(extractFromNotes(lead.notes, "Nights")) ||
     1;
 
-  const nightly = Number(property.price_per_night) || 0;
-  const subtotal = nightly * nights;
+  const weekdayPrice = Number(property.price_per_night) || 0;
+  const weekendPrice = Number(property.weekend_price ?? property.price_per_night) || 0;
+  const nightly = weekdayPrice;
+  const subtotal = staySubtotalFromIso({
+    checkInIso: lead.check_in,
+    checkOutIso: lead.check_out,
+    weekdayPrice,
+    weekendPrice,
+    fallbackNights: nights,
+  }).subtotal;
   const cleaning = Number(property.cleaning_fee || 0);
   const hostPayout = Math.round((subtotal * 0.75 + cleaning) * 100) / 100;
 

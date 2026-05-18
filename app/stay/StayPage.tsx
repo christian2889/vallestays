@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { STAY_COPY } from "@/lib/data";
+import { computeStaySubtotal } from "@/lib/pricing";
 import { useLang } from "@/components/LangContext";
 import { Nav } from "@/components/Nav";
 import { Footer } from "@/components/Footer";
@@ -233,8 +234,20 @@ function BookingWidget({
     range.start && range.end
       ? Math.max(1, Math.round((range.end.getTime() - range.start.getTime()) / 86400000))
       : 0;
-  const nightly = Math.round(p.price_per_night);
-  const sub = nights * nightly;
+  const weekdayPrice = Math.round(p.price_per_night);
+  const weekendPrice = Math.round(p.weekend_price ?? p.price_per_night);
+  const breakdown =
+    range.start && range.end
+      ? computeStaySubtotal({
+          checkIn: range.start,
+          checkOut: range.end,
+          weekdayPrice,
+          weekendPrice,
+        })
+      : { nights: 0, subtotal: 0, weekdayNights: 0, weekendNights: 0 };
+  const sub = breakdown.subtotal;
+  const nightly = weekdayPrice;
+  const hasWeekendRate = weekendPrice !== weekdayPrice;
   const clean = Math.round(p.cleaning_fee || 0);
   const total = sub + clean;
 
@@ -291,12 +304,31 @@ function BookingWidget({
       />
 
       <div className="vsd-book-totals">
-        <div>
-          <span>
-            ${nightly} × {nights} {s.book_nights}
-          </span>
-          <b>${sub.toLocaleString()}</b>
-        </div>
+        {hasWeekendRate && breakdown.weekendNights > 0 ? (
+          <>
+            {breakdown.weekdayNights > 0 && (
+              <div>
+                <span>
+                  ${weekdayPrice} × {breakdown.weekdayNights} {s.book_nights}
+                </span>
+                <b>${(weekdayPrice * breakdown.weekdayNights).toLocaleString()}</b>
+              </div>
+            )}
+            <div>
+              <span>
+                ${weekendPrice} × {breakdown.weekendNights} {s.book_wknd}
+              </span>
+              <b>${(weekendPrice * breakdown.weekendNights).toLocaleString()}</b>
+            </div>
+          </>
+        ) : (
+          <div>
+            <span>
+              ${nightly} × {nights} {s.book_nights}
+            </span>
+            <b>${sub.toLocaleString()}</b>
+          </div>
+        )}
         <div>
           <span>{s.book_clean}</span>
           <b>${clean}</b>
