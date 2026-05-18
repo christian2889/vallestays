@@ -47,6 +47,53 @@ export async function getProperty(idOrSlug: string): Promise<UIProperty | null> 
   return data ? toUIProperty(data) : null;
 }
 
+export type DateRange = { start: string; end: string };
+
+/**
+ * Real availability for a property — shared across vallestays & nidosnvillas
+ * because blocked_dates and bookings are keyed by property_id (no site filter).
+ * Returns inclusive ISO date ranges (YYYY-MM-DD) that should be marked off.
+ */
+export async function getBlockedDateRanges(
+  propertyId: string
+): Promise<DateRange[]> {
+  const supabase = await getSupabaseServerClient();
+  const ranges: DateRange[] = [];
+
+  // 1) blocked_dates: ical syncs, manual blocks, booking-derived blocks
+  const { data: blocked, error: blockedErr } = await supabase
+    .from("blocked_dates" as never)
+    .select("start_date, end_date")
+    .eq("property_id", propertyId);
+  if (blockedErr) {
+    console.error("getBlockedDateRanges blocked_dates error", blockedErr);
+  } else {
+    for (const r of (blocked ?? []) as { start_date: string; end_date: string }[]) {
+      if (r.start_date && r.end_date) ranges.push({ start: r.start_date, end: r.end_date });
+    }
+  }
+
+  // 2) platform bookings that are not cancelled/refunded
+  const { data: bookings, error: bookingsErr } = await supabase
+    .from("bookings")
+    .select("check_in, check_out, status")
+    .eq("property_id", propertyId);
+  if (bookingsErr) {
+    console.error("getBlockedDateRanges bookings error", bookingsErr);
+  } else {
+    for (const b of (bookings ?? []) as {
+      check_in: string;
+      check_out: string;
+      status: string | null;
+    }[]) {
+      if (b.status === "cancelled" || b.status === "refunded") continue;
+      if (b.check_in && b.check_out) ranges.push({ start: b.check_in, end: b.check_out });
+    }
+  }
+
+  return ranges;
+}
+
 /** Insert a booking row tied to this site. */
 export async function createBooking(
   input: DBBookingInsert

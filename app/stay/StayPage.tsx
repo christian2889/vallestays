@@ -148,30 +148,35 @@ function BookingWidget({
   p,
   s,
   lang,
+  blockedRanges,
 }: {
   p: UIProperty;
   s: (typeof STAY_COPY)["en"] | (typeof STAY_COPY)["es"];
   lang: "en" | "es";
+  blockedRanges: { start: string; end: string }[];
 }) {
   const unavailable = useMemo(() => {
     const out: Date[] = [];
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    [3, 4, 5, 14, 15, 22, 23, 24, 25, 38, 39, 40, 55, 56].forEach((off) => {
-      const d = new Date(today);
-      d.setDate(d.getDate() + off);
-      out.push(d);
-    });
+    for (const r of blockedRanges) {
+      // Parse YYYY-MM-DD as a local date (avoid UTC shift)
+      const [sy, sm, sd] = r.start.split("-").map(Number);
+      const [ey, em, ed] = r.end.split("-").map(Number);
+      if (!sy || !ey) continue;
+      const cur = new Date(sy, sm - 1, sd);
+      const end = new Date(ey, em - 1, ed);
+      // Checkout date is the day the guest leaves — that night is free,
+      // so mark [start, end) as unavailable.
+      let guard = 0;
+      while (cur < end && guard < 1500) {
+        out.push(new Date(cur));
+        cur.setDate(cur.getDate() + 1);
+        guard++;
+      }
+    }
     return out;
-  }, []);
+  }, [blockedRanges]);
 
-  const [range, setRange] = useState<CalRange>(() => {
-    const start = new Date();
-    start.setDate(start.getDate() + 9);
-    const end = new Date(start);
-    end.setDate(end.getDate() + 4);
-    return { start, end };
-  });
+  const [range, setRange] = useState<CalRange>({ start: null, end: null });
   const [guests, setGuests] = useState(2);
 
   const nights =
@@ -256,9 +261,11 @@ function BookingWidget({
 export function StayPage({
   property: p,
   similar,
+  blockedRanges = [],
 }: {
   property: UIProperty;
   similar: UIProperty[];
+  blockedRanges?: { start: string; end: string }[];
 }) {
   const { lang } = useLang();
   const s = STAY_COPY[lang];
@@ -530,7 +537,7 @@ export function StayPage({
             )}
           </div>
 
-          <BookingWidget p={p} s={s} lang={lang} />
+          <BookingWidget p={p} s={s} lang={lang} blockedRanges={blockedRanges} />
         </section>
 
         {similar.length > 0 && (
