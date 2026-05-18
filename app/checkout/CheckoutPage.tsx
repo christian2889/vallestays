@@ -53,7 +53,7 @@ const CHECKOUT_COPY = {
     pri_discount: "Discount",
     pri_total: "Total",
     pri_charged: "Charged now via Stripe",
-    coupon_rec: "Use VALLE15 for 15% off →",
+    coupon_rec: "Use VALLE10 for 10% off →",
     coupon_ph: "Promo code",
     coupon_apply: "Apply",
     coupon_applied: "Applied",
@@ -113,7 +113,7 @@ const CHECKOUT_COPY = {
     pri_discount: "Descuento",
     pri_total: "Total",
     pri_charged: "Se cobra ahora con Stripe",
-    coupon_rec: "Usa VALLE15 y obtén 15% de descuento →",
+    coupon_rec: "Usa VALLE10 y obtén 10% de descuento →",
     coupon_ph: "Código de promoción",
     coupon_apply: "Aplicar",
     coupon_applied: "Aplicado",
@@ -552,7 +552,7 @@ export function CheckoutPage({
                     <button
                       type="button"
                       className="vsc-coupon-rec"
-                      onClick={() => setCouponInput("VALLE15")}
+                      onClick={() => setCouponInput("VALLE10")}
                     >
                       {c.coupon_rec}
                     </button>
